@@ -6,18 +6,18 @@
 
 本仓库是对美团外卖广告B端自动化发版系统（adfe-b-publish-automation）及其全部关联 Skill 的技术深度分析。系统以「AI Agent Skill 编排 + Cron 定时调度」的架构，将传统手工发版流程（每次 2-3 小时）完全自动化，覆盖 PR 合入检查、Stage 自动部署、备机验证催促、Prod 发版确认四大阶段。
 
-每份 HTML 文档包含：项目概述、系统架构图、核心流程分析、关键技术细节、安全与防错机制、面试话术参考、简历要点（可直接引用）。
+每份文档提供 HTML（可视化交互）和 Markdown（纯文本阅读）两种格式，包含：项目概述、系统架构图、核心流程分析、关键技术细节、安全与防错机制、面试话术参考、简历要点（可直接引用）。
 
 ## 📂 文档结构
 
-| 文件 | 内容 | 对应 Skill |
-|------|------|-----------|
-| [index.html](index.html) | **主控 Skill 全景分析** — 4 Step 发版流水线、9 个 Cron 任务、5 条绝对红线、面试话术 | adfe-b-publish-automation V56 |
-| [adfe-b-launch-plan-info.html](adfe-b-launch-plan-info.html) | **上线计划详情查询** — 三数据源聚合、双重 RD 过滤、结构变化检测 | adfe-b-launch-plan-info V8 |
-| [adfe-b-launch-plan.html](adfe-b-launch-plan.html) | **上线计划搜索** — Shell 驱动确定性设计、CLI+浏览器双路径搜索 | adfe-b-launch-plan V18 |
-| [daxiang-sender.html](daxiang-sender.html) | **大象消息发送** — 10+ 消息类型、OAuth2 认证、文件中转模式 | daxiang-sender V6 |
-| [groot-cli.html](groot-cli.html) | **Groot 发版管理** — 4 大命令组、4 级认证优先、dry-run 预检 | groot-cli V11 |
-| [fsd-ecosystem.html](fsd-ecosystem.html) | **FSD 生态 (CLI + SSO)** — 全流程 CLI、自动换票、401 自动修复 | fsd V14 + fsd-sso V3 |
+| 内容 | HTML 版本 | Markdown 版本 | 对应 Skill |
+|------|-----------|---------------|-----------|
+| **主控 Skill 全景分析** | [index.html](index.html) | [index.md](markdown/index.md) | adfe-b-publish-automation V56 |
+| **上线计划详情查询** | [adfe-b-launch-plan-info.html](adfe-b-launch-plan-info.html) | [adfe-b-launch-plan-info.md](markdown/adfe-b-launch-plan-info.md) | adfe-b-launch-plan-info V8 |
+| **上线计划搜索** | [adfe-b-launch-plan.html](adfe-b-launch-plan.html) | [adfe-b-launch-plan.md](markdown/adfe-b-launch-plan.md) | adfe-b-launch-plan V18 |
+| **大象消息发送** | [daxiang-sender.html](daxiang-sender.html) | [daxiang-sender.md](markdown/daxiang-sender.md) | daxiang-sender V6 |
+| **Groot 发版管理** | [groot-cli.html](groot-cli.html) | [groot-cli.md](markdown/groot-cli.md) | groot-cli V11 |
+| **FSD 生态 (CLI + SSO)** | [fsd-ecosystem.html](fsd-ecosystem.html) | [fsd-ecosystem.md](markdown/fsd-ecosystem.md) | fsd V14 + fsd-sso V3 |
 
 ## 🏗️ 系统架构总览
 
