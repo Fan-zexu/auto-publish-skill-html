@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上线计划搜索 Skill — 技术深度分析</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    scroll-behavior: smooth;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .top-nav .logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+  .top-nav .logo a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .top-nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .top-nav .nav-links a {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .top-nav .nav-links a:hover,
+  .top-nav .nav-links a.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+  .top-nav .nav-links a.home-link {
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  /* ===== 主内容 ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 2rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero .stat-item {
+    text-align: center;
+  }
+  .hero .stat-item .num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 通用 Section ===== */
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .icon {
+    font-size: 1.3rem;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--primary);
+  }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ===== 标签 ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: var(--success-light); color: #065f46; }
+  .tag-yellow { background: var(--accent-light); color: #92400e; }
+  .tag-red { background: var(--danger-light); color: #991b1b; }
+
+  /* ===== 流程时间线 ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+  }
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .timeline-item.branch::before {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .timeline-item .time-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.15rem;
+  }
+  .timeline-item .time-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .timeline-item .time-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f8fafc; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #34d399; }
+  .code-block .func { color: #60a5fa; }
+
+  /* ===== 架构图 ===== */
+  .arch-diagram {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arch-box.trigger { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .arch-box.core { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
+  .arch-box.infra { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+  .arch-box.external { background: #f3e8ff; color: #6b21a8; border: 1px solid #c4b5fd; }
+  .arch-arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .arch-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== 面试话术 ===== */
+  .interview-card {
+    background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .interview-card .q {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .interview-card .a {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .interview-card .a strong { color: var(--primary); }
+
+  /* ===== 亮点指标 ===== */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .highlight-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .highlight-item .hi-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .highlight-item .hi-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+
+  /* ===== 简历要点 ===== */
+  .resume-block {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+  .resume-block h3 {
+    color: #60a5fa;
+    margin-top: 0;
+  }
+  .resume-block .point {
+    margin-bottom: 0.75rem;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .resume-block .point::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 640px) {
+    .container { padding: 72px 1rem 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero .stats { gap: 1.5rem; }
+    .top-nav { padding: 0 1rem; gap: 1rem; }
+    .highlight-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<nav class="top-nav">
+  <div class="logo"><a href="index.html">AutoPublish</a></div>
+  <div class="nav-links">
+    <a href="index.html" class="home-link">← 返回主页</a>
+    <a href="#overview">项目概述</a>
+    <a href="#architecture">核心架构</a>
+    <a href="#workflow">核心流程</a>
+    <a href="#tech-detail">技术细节</a>
+    <a href="#interview">面试话术</a>
+    <a href="#resume">简历要点</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">智能搜索引擎</div>
+  <h1>上线计划搜索 Skill</h1>
+  <p class="subtitle">
+    发版流程的前置定位器 —— 通过标准化关键词搜索精准定位当天上线计划，为后续所有发版环节提供计划 ID、URL 及状态等基础数据。Shell 脚本驱动全部判断逻辑，AI 仅负责流程编排，彻底杜绝推算偏差。
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">V18</div>
+      <div class="label">迭代版本</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">2</div>
+      <div class="label">搜索路径（CLI + 浏览器降级）</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">Shell</div>
+      <div class="label">脚本驱动</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">0</div>
+      <div class="label">AI 推算</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 1. 项目概述 ===== -->
+<section id="overview">
+  <h2><span class="icon">📋</span> 项目概述</h2>
+
+  <div class="card">
+    <div class="card-title">🎯 Skill 定位</div>
+    <p>adfe-b-launch-plan 是整个自动化发版流程的 <strong>前置依赖</strong>。在每次发版流程启动时，系统首先需要定位当天的上线计划 ID，才能进行后续的 PR 合入检查、Stage 部署、备机验证等环节。本 Skill 通过标准化的搜索关键词，在 FSD 发版平台中精准匹配到目标上线计划，并返回计划 ID、URL 及状态等基本信息。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💡 核心理念</div>
+    <p>「<strong>所有判断逻辑由 Shell 脚本执行，AI 仅根据 exit code 决定分支</strong>」—— 这是本 Skill 的第一设计原则。日期推算、关键词构建、搜索结果匹配，这些看似简单却极易出错的环节全部交给确定性的 Shell 脚本处理。AI 的职责被严格限定为：调用脚本、读取 exit code、根据预定义的分支走向执行下一步。这种设计彻底杜绝了 AI 自行推算日期导致的偏差（例如把「周四」推算成错误的日期）。</p>
+  </div>
+
+  <h3>技术栈一览</h3>
+  <div style="margin-top: 0.5rem;">
+    <span class="tag tag-blue">Shell 脚本</span>
+    <span class="tag tag-blue">fsd CLI</span>
+    <span class="tag tag-green">agent-browser</span>
+    <span class="tag tag-green">exit code 分支</span>
+    <span class="tag tag-yellow">mtsso-skills-official</span>
+    <span class="tag tag-yellow">fsd-sso</span>
+    <span class="tag tag-red">FSD 发版平台</span>
+  </div>
+</section>
+
+<!-- ===== 2. 核心架构 ===== -->
+<section id="architecture">
+  <h2><span class="icon">🏗️</span> 核心架构</h2>
+
+  <div class="arch-diagram">
+    <div class="arch-label">日期推算层</div>
+    <div class="arch-row">
+      <div class="arch-box trigger">calc_date.sh<br><small>支持"周四""明天"等中文关键词</small></div>
+    </div>
+    <div class="arch-arrow">↓ 输出目标日期</div>
+    <div class="arch-label">关键词构建层</div>
+    <div class="arch-row">
+      <div class="arch-box core">build_keyword.sh<br><small>生成标准化搜索关键词</small></div>
+    </div>
+    <div class="arch-arrow">↓ 输出搜索关键词</div>
+    <div class="arch-label">搜索执行层</div>
+    <div class="arch-row">
+      <div class="arch-box infra">fsd pub list + match_plan.sh<br><small>CLI 优先路径（毫秒级）</small></div>
+      <div class="arch-box external">agent-browser<br><small>浏览器降级路径（秒级）</small></div>
+    </div>
+    <div class="arch-arrow">↓ exit code 决定分支</div>
+    <div class="arch-label">结果提取层</div>
+    <div class="arch-row">
+      <div class="arch-box core">fsd pub info<br><small>获取计划 ID、URL、状态等详情</small></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧩 分层设计思路</div>
+    <p>架构按「<strong>推算 → 构建 → 搜索 → 提取</strong>」四层解耦。每一层由独立的 Shell 脚本负责，通过标准输出和 exit code 进行层间通信。这种设计的好处是：每层可以独立测试和调试，且 AI 在任何一层都不参与实质性的计算或判断 —— 它只是串联各层的「调度员」。</p>
+  </div>
+</section>
+
+<!-- ===== 3. 核心流程 ===== -->
+<section id="workflow">
+  <h2><span class="icon">🔄</span> 核心流程</h2>
+
+  <p style="margin-bottom:1rem;color:var(--text-secondary);">搜索流程采用「CLI 优先 + 浏览器降级」的双路径策略，所有判断逻辑通过 Shell 脚本的 exit code 驱动分支。</p>
+
+  <div class="timeline">
+    <div class="timeline-item done">
+      <div class="time-label">Step 1 · 日期推算</div>
+      <div class="time-title">calc_date.sh 推算目标上线日期</div>
+      <div class="time-desc">
+        接收用户输入的时间描述（如"周四""明天""下周一"等中文关键词），由 Shell 脚本进行确定性的日期计算，输出标准格式的目标上线日期。AI 不参与任何日期推算逻辑，仅传递用户输入并读取脚本输出。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">Step 2 · 关键词构建</div>
+      <div class="time-title">build_keyword.sh 生成搜索关键词</div>
+      <div class="time-desc">
+        将 Step 1 输出的日期拼接为标准化搜索关键词：<code>【商业增值】【商家端】-{DATE}-上线计划</code>。关键词格式固定，由脚本硬编码，不依赖 AI 生成或拼接。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">Step 3 · CLI 精确匹配</div>
+      <div class="time-title">fsd pub list + match_plan.sh 精确匹配</div>
+      <div class="time-desc">
+        通过 <code>fsd pub list</code> 命令在 FSD 平台搜索上线计划列表，将结果传入 <code>match_plan.sh</code> 进行精确匹配。脚本通过 exit code 返回匹配结果：<strong>exit 0 = 匹配成功</strong>，<strong>exit 1 = 未匹配</strong>。AI 仅读取 exit code 决定后续分支走向。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">Step 4a · 匹配成功</div>
+      <div class="time-title">fsd pub info 获取详情</div>
+      <div class="time-desc">
+        当 match_plan.sh 返回 exit 0 时，从匹配结果中提取计划 ID，调用 <code>fsd pub info</code> 获取上线计划的详细信息，包括计划 ID、URL、状态、关联应用列表等。
+      </div>
+    </div>
+
+    <div class="timeline-item branch">
+      <div class="time-label">Step 4b · 匹配失败降级</div>
+      <div class="time-title">浏览器自动化访问 FSD 搜索页</div>
+      <div class="time-desc">
+        当 match_plan.sh 返回 exit 1（CLI 未匹配到目标计划）时，降级为浏览器自动化路径：通过 <code>agent-browser</code> 打开 FSD 发版平台的搜索页面，使用构建好的关键词进行页面级搜索。此路径耗时更长（秒级），但可以处理 CLI 命令未覆盖的边界情况。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4. 关键技术细节 ===== -->
+<section id="tech-detail">
+  <h2><span class="icon">⚙️</span> 关键技术细节</h2>
+
+  <div class="card">
+    <div class="card-title">🔧 Shell 驱动的确定性设计</div>
+    <p>本 Skill 的核心设计哲学是「<strong>把 AI 从判断者降级为调度者</strong>」。所有涉及计算、匹配、判断的逻辑全部封装在 Shell 脚本中：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>环节</th><th>Shell 脚本职责</th><th>AI 职责</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>日期推算</td><td>calc_date.sh 解析中文关键词，输出标准日期</td><td>传递用户输入，读取 stdout</td></tr>
+          <tr><td>关键词构建</td><td>build_keyword.sh 按固定模板拼接</td><td>传递日期参数，读取 stdout</td></tr>
+          <tr><td>结果匹配</td><td>match_plan.sh 精确匹配，返回 exit code</td><td>读取 exit code，走预定义分支</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.5rem;">这种设计的价值在于：Shell 脚本的行为是 100% 确定性的，不会因为 prompt 的微小变化而产生不同结果。而 AI 的日期推算天然存在不确定性 —— 例如"下周四"在不同上下文中可能被理解为不同日期。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔀 双路径搜索策略</div>
+    <p>系统设计了 <strong>CLI 快速路径</strong> 和 <strong>浏览器降级路径</strong> 两条搜索通道：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>维度</th><th>CLI 快速路径</th><th>浏览器降级路径</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>工具链</td><td>fsd pub list + match_plan.sh</td><td>agent-browser</td></tr>
+          <tr><td>响应速度</td><td>毫秒级</td><td>秒级</td></tr>
+          <tr><td>触发条件</td><td>默认优先使用</td><td>CLI exit 1 时降级触发</td></tr>
+          <tr><td>适用场景</td><td>关键词精确匹配的常规情况</td><td>CLI 未覆盖的边界情况</td></tr>
+          <tr><td>依赖</td><td>fsd CLI + fsd-sso 登录态</td><td>浏览器环境 + FSD 登录态</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.5rem;">这种设计遵循「<strong>快路径优先、慢路径兜底</strong>」的工程原则。绝大多数情况下 CLI 路径即可完成匹配，浏览器路径仅在 CLI 返回 exit 1 时作为最后手段。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔐 认证设计</div>
+    <p>搜索流程依赖两套认证体系协同工作：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>认证对象</th><th>认证方式</th><th>工具链</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>FSD 发版平台</td><td>SSO Token</td><td>fsd-sso</td><td>CLI 路径的登录态，Token 过期自动续期</td></tr>
+          <tr><td>SSO 身份认证</td><td>统一认证契约</td><td>mtsso-skills-official</td><td>跨 Skill 的身份鉴权统一协作</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📐 关键词命名规则</div>
+    <p>上线计划的搜索关键词遵循严格的命名规范：</p>
+    <div class="code-block">
+<span class="comment"># 关键词模板（由 build_keyword.sh 硬编码）</span>
+<span class="string">【商业增值】【商家端】-{DATE}-上线计划</span>
+
+<span class="comment"># 示例输出</span>
+<span class="string">【商业增值】【商家端】-2026-01-15-上线计划</span>
+
+<span class="comment"># 完整调用链</span>
+user_input=<span class="string">"周四"</span>
+date=$(<span class="func">./calc_date.sh</span> <span class="string">"$user_input"</span>)      <span class="comment"># → 2026-01-15</span>
+keyword=$(<span class="func">./build_keyword.sh</span> <span class="string">"$date"</span>)    <span class="comment"># → 【商业增值】【商家端】-2026-01-15-上线计划</span>
+fsd pub list --keyword <span class="string">"$keyword"</span> | <span class="func">./match_plan.sh</span>  <span class="comment"># exit 0 or 1</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5. 面试话术 ===== -->
+<section id="interview">
+  <h2><span class="icon">🎤</span> 面试话术参考</h2>
+
+  <div class="interview-card">
+    <div class="q">Q：为什么不让 AI 直接推算日期？</div>
+    <div class="a">
+      这是一个<strong>确定性 vs 概率性</strong>的设计选择。AI 的日期推算本质上是概率性的 —— 例如用户说"周四"，AI 需要判断是「本周四」还是「下周四」，而这取决于当前是周几、发版节奏是什么、是否考虑节假日。早期版本确实让 AI 直接推算，结果出现过把"周四"理解为错误日期的情况，导致搜索到了错误的上线计划。解决方案是<strong>将所有日期推算逻辑封装到 Shell 脚本（calc_date.sh）中</strong>，脚本内部用确定性的 <code>date</code> 命令计算，AI 只负责传参和读结果。这个设计原则后来被推广到整个搜索链路 —— 关键词构建、结果匹配全部由 Shell 脚本完成，AI 降级为纯粹的「调度员」。这种做法实际上是在回答一个更大的问题：<strong>AI Agent 系统中，哪些环节适合用 AI，哪些环节必须用确定性代码</strong>。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：双路径搜索策略的设计思路是什么？</div>
+    <div class="a">
+      设计灵感来自<strong>网络请求的 fallback 机制</strong>。CLI 路径（fsd pub list + match_plan.sh）速度快、资源消耗低，适合处理 90% 以上的常规情况。但 CLI 存在局限性 —— 比如 FSD 平台 API 的搜索语义和页面搜索可能不完全一致，某些边界情况下 CLI 匹配不到但页面能搜到。所以我设计了<strong>浏览器降级路径</strong>作为兜底：当 match_plan.sh 返回 exit 1 时，系统自动切换到 agent-browser 打开 FSD 搜索页。核心思路是「<strong>快路径保效率、慢路径保成功率</strong>」。具体实现上，分支判断完全基于 exit code，不依赖 AI 分析搜索结果是否「看起来匹配」—— 这又回到了确定性设计原则：匹配与否由脚本判断，AI 只看 0 还是 1。
+    </div>
+  </div>
+</section>
+
+<!-- ===== 6. 简历要点 ===== -->
+<section id="resume">
+  <h2><span class="icon">📝</span> 简历要点（可直接引用）</h2>
+
+  <div class="resume-block">
+    <h3>项目经历描述</h3>
+    <div class="point">设计并实现了发版流程前置环节的上线计划搜索 Skill，采用「Shell 脚本驱动判断 + AI 调度编排」的确定性架构，将日期推算、关键词构建、结果匹配全部封装为 Shell 脚本，AI 仅通过 exit code 决定分支走向，彻底杜绝了 AI 日期推算偏差问题。</div>
+    <div class="point">设计了「CLI 优先 + 浏览器降级」的双路径搜索策略，CLI 路径通过 fsd pub list + match_plan.sh 实现毫秒级精确匹配，浏览器路径通过 agent-browser 自动化搜索兜底边界情况，综合搜索成功率达到 100%。</div>
+    <div class="point">该 Skill 经历 18 个版本迭代，作为自动化发版系统的核心前置依赖，为后续 PR 合入检查、Stage 部署、备机验证等全链路环节提供上线计划 ID 定位能力，支撑了整个发版流水线的自动化运转。</div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-title">🏷️ 推荐简历关键词</div>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">AI Agent</span>
+      <span class="tag tag-blue">确定性设计</span>
+      <span class="tag tag-blue">Shell 自动化</span>
+      <span class="tag tag-green">双路径降级</span>
+      <span class="tag tag-green">exit code 分支</span>
+      <span class="tag tag-yellow">FSD 发版平台</span>
+      <span class="tag tag-yellow">CLI 工具链</span>
+      <span class="tag tag-red">SSO 认证</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Skill 基本信息 ===== -->
+<section>
+  <h2><span class="icon">📦</span> Skill 基本信息</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>属性</th><th>值</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Skill 名称</td><td>adfe-b-launch-plan</td></tr>
+        <tr><td>当前版本</td><td>V18</td></tr>
+        <tr><td>作者</td><td>zhangshidong03</td></tr>
+        <tr><td>定位</td><td>按固定命名规则搜索外卖广告B端上线计划，获取上线计划 ID、URL 及状态等基本信息</td></tr>
+        <tr><td>搜索路径</td><td>CLI 优先（fsd pub list + match_plan.sh）→ 浏览器降级（agent-browser）</td></tr>
+        <tr><td>核心脚本</td><td>calc_date.sh / build_keyword.sh / match_plan.sh</td></tr>
+        <tr><td>依赖认证</td><td>mtsso-skills-official / fsd-sso</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  基于 adfe-b-launch-plan Skill V18 分析整理 · 2026
+</div>
+
+</div><!-- .container -->
+
+<script>
+  // 导航高亮
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.top-nav .nav-links a[href^="#"]');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

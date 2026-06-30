@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSD 生态 — CLI + SSO 认证 · 技术深度分析</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    scroll-behavior: smooth;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .top-nav .logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+  .top-nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .top-nav .nav-links a {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .top-nav .nav-links a:hover,
+  .top-nav .nav-links a.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  /* ===== 主内容 ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 2rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero .stat-item {
+    text-align: center;
+  }
+  .hero .stat-item .num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 通用 Section ===== */
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .icon {
+    font-size: 1.3rem;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--primary);
+  }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ===== 标签 ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: var(--success-light); color: #065f46; }
+  .tag-yellow { background: var(--accent-light); color: #92400e; }
+  .tag-red { background: var(--danger-light); color: #991b1b; }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f8fafc; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #34d399; }
+  .code-block .func { color: #60a5fa; }
+
+  /* ===== 架构图 ===== */
+  .arch-diagram {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arch-box.trigger { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .arch-box.core { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
+  .arch-box.infra { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+  .arch-box.external { background: #f3e8ff; color: #6b21a8; border: 1px solid #c4b5fd; }
+  .arch-arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .arch-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== 面试话术 ===== */
+  .interview-card {
+    background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .interview-card .q {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .interview-card .a {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .interview-card .a strong { color: var(--primary); }
+
+  /* ===== 亮点指标 ===== */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .highlight-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .highlight-item .hi-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .highlight-item .hi-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+
+  /* ===== 简历要点 ===== */
+  .resume-block {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+  .resume-block h3 {
+    color: #60a5fa;
+    margin-top: 0;
+  }
+  .resume-block .point {
+    margin-bottom: 0.75rem;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .resume-block .point::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+  }
+
+  /* ===== 命令组卡片 ===== */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .cmd-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: box-shadow 0.2s;
+  }
+  .cmd-card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .cmd-card .cmd-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+    color: var(--primary);
+  }
+  .cmd-card .cmd-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .cmd-card code {
+    background: var(--code-bg);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+  }
+
+  /* ===== 流程时间线 ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+  }
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .timeline-item .time-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.15rem;
+  }
+  .timeline-item .time-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .timeline-item .time-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 640px) {
+    .container { padding: 72px 1rem 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero .stats { gap: 1.5rem; }
+    .top-nav { padding: 0 1rem; gap: 1rem; }
+    .highlight-grid { grid-template-columns: 1fr 1fr; }
+    .cmd-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<nav class="top-nav">
+  <div class="logo">FSD Ecosystem</div>
+  <div class="nav-links">
+    <a href="index.html">返回主页</a>
+    <a href="#overview">项目概述</a>
+    <a href="#commands">命令全景</a>
+    <a href="#sso">SSO 认证</a>
+    <a href="#usage">使用场景</a>
+    <a href="#interview">面试话术</a>
+    <a href="#resume">简历要点</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">研发全流程平台</div>
+  <h1>FSD 生态 — CLI + SSO 认证</h1>
+  <p class="subtitle">
+    覆盖部署、交付、测试、上线准备全链路的一站式 CLI 工具与认证基础设施
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">5</div>
+      <div class="label">大命令组</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">V14+V3</div>
+      <div class="label">版本</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">全流程</div>
+      <div class="label">覆盖</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">自动</div>
+      <div class="label">换票</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 1. 项目概述 ===== -->
+<section id="overview">
+  <h2><span class="icon">📋</span> 项目概述</h2>
+
+  <div class="card">
+    <div class="card-title">fsd — 研发全流程管理 CLI</div>
+    <p>通过 <code>fsd</code> CLI 管理 FSD 平台的部署、交付自测、测试计划、上线准备全流程。以命令行方式封装 FSD 平台 API，让 AI Agent 和自动化脚本能够直接操作研发流程中的各个环节。</p>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">版本: V14</span>
+      <span class="tag tag-green">作者: lixuesong05</span>
+      <span class="tag tag-yellow">CLI 工具</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">fsd-sso — FSD 体系的认证基础设施</div>
+    <p>为 FSD 体系提供 SSO 登录与 token 管理。负责统一处理 FSD CLI 所需的身份认证，包括登录态获取、token 缓存、过期检测和自动续期，是 fsd CLI 正常工作的前提条件。</p>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">版本: V3</span>
+      <span class="tag tag-green">作者: lixuesong05</span>
+      <span class="tag tag-red">认证基础设施</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">二者的关系</div>
+    <p><strong>fsd-sso 为 fsd CLI 提供登录态</strong>，二者共享本地 token 存储。fsd CLI 的所有命令在执行前都会读取 fsd-sso 写入的本地 token。当 token 过期或不存在时，系统自动调用 fsd-sso 的登录流程获取新 token，实现无感续期。</p>
+    <div class="arch-diagram" style="margin-top: 1rem;">
+      <div class="arch-row">
+        <div class="arch-box core">fsd CLI<br><small>业务命令执行</small></div>
+      </div>
+      <div class="arch-arrow">↕ 读取 / 触发刷新</div>
+      <div class="arch-row">
+        <div class="arch-box infra">fsd-sso<br><small>登录 &amp; Token 管理</small></div>
+      </div>
+      <div class="arch-arrow">↕ 写入 / 读取</div>
+      <div class="arch-row">
+        <div class="arch-box external">本地 Token 存储<br><small>~/.fsd/conf</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 2. fsd CLI 命令全景 ===== -->
+<section id="commands">
+  <h2><span class="icon">⚙️</span> fsd CLI 命令全景（5 大命令组）</h2>
+
+  <div class="cmd-grid">
+    <div class="cmd-card">
+      <div class="cmd-name">部署管理 — fsd deploy</div>
+      <div class="cmd-desc">
+        骨干/备机/泳道部署、状态查询、失败分析。支持通过 <code>fsd deploy trigger</code> 触发部署，<code>fsd deploy status</code> 查询部署状态，<code>fsd deploy analyze</code> 分析部署失败原因。
+      </div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-name">交付管理 — fsd delivery</div>
+      <div class="cmd-desc">
+        创建/触发/准出/finish 全链路。使用 <code>fsd delivery create</code> 创建交付单，<code>fsd delivery trigger</code> 触发交付流程，<code>fsd delivery check</code> 准出检测，<code>fsd delivery finish</code> 完成交付。
+      </div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-name">上线计划 — fsd pub</div>
+      <div class="cmd-desc">
+        list/info/status/pre-rtag/rtag/merge。<code>fsd pub list</code> 搜索上线计划，<code>fsd pub info</code> 查看详情，<code>fsd pub status</code> 获取状态，<code>fsd pub pre-rtag</code> 备机验证，<code>fsd pub rtag</code> 打版，<code>fsd pub merge</code> 合入。
+      </div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-name">测试管理 — fsd test / fsd fstPlan</div>
+      <div class="cmd-desc">
+        测试计划、FST 触发、准出检测。<code>fsd test trigger</code> 触发自动化测试，<code>fsd fstPlan create</code> 创建测试计划，<code>fsd fstPlan check</code> 检查测试准出条件是否满足。
+      </div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-name">实体管理 — fsd req/task/defect/pr</div>
+      <div class="cmd-desc">
+        需求/任务/缺陷/PR 的 CRUD 操作。支持查询关联需求 <code>fsd req list</code>、创建任务 <code>fsd task create</code>、管理缺陷 <code>fsd defect list</code>、查看 PR 状态 <code>fsd pr status</code>。
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">命令组关系概览</div>
+    <div class="arch-diagram">
+      <div class="arch-label">研发全流程</div>
+      <div class="arch-row">
+        <div class="arch-box trigger">需求/任务<br><small>fsd req/task</small></div>
+        <div class="arch-box core">交付管理<br><small>fsd delivery</small></div>
+        <div class="arch-box infra">部署管理<br><small>fsd deploy</small></div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-row">
+        <div class="arch-box trigger">缺陷/PR<br><small>fsd defect/pr</small></div>
+        <div class="arch-box core">测试管理<br><small>fsd test/fstPlan</small></div>
+        <div class="arch-box infra">上线计划<br><small>fsd pub</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 3. fsd-sso 认证机制 ===== -->
+<section id="sso">
+  <h2><span class="icon">🔐</span> fsd-sso 认证机制</h2>
+
+  <div class="card">
+    <div class="card-title">三件套命令</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>命令</th><th>功能</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>fsd-sso login</code></td><td>登录获取 token</td><td>根据环境自动选择登录方式（浏览器 SSO / MOA 换票）</td></tr>
+          <tr><td><code>fsd-sso status</code></td><td>检查登录状态</td><td>输出当前 token 有效性、过期时间、用户身份</td></tr>
+          <tr><td><code>fsd-sso logout</code></td><td>注销登录态</td><td>清除本地 token 缓存</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">环境自动识别</div>
+    <p>fsd-sso 通过 <code>CATCLAW_PROFILE</code> 环境变量自动识别运行环境。在沙箱环境中，自动使用 MOA 换票方式获取 token，无需用户手动打开浏览器。非沙箱环境则使用标准浏览器 SSO 登录流程。</p>
+    <div class="code-block">
+<span class="comment">// 环境识别逻辑</span>
+<span class="keyword">if</span> (process.env.CATCLAW_PROFILE === <span class="string">'sandbox'</span>) {
+  <span class="comment">// 沙箱环境 → MOA 换票，无需浏览器</span>
+  token = <span class="keyword">await</span> <span class="func">moaTokenExchange</span>();
+} <span class="keyword">else</span> {
+  <span class="comment">// 本地/CI → 浏览器 SSO 登录</span>
+  token = <span class="keyword">await</span> <span class="func">browserSsoLogin</span>();
+}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Token 优先级</div>
+    <p>系统按以下优先级查找可用 token，确保在各种环境下都能正确获取身份凭证：</p>
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="time-label">优先级 1（最高）</div>
+        <div class="time-title">环境变量 FSD_SSOID</div>
+        <div class="time-desc">允许用户或 CI 系统通过环境变量显式指定 token，跳过所有自动获取逻辑。</div>
+      </div>
+      <div class="timeline-item done">
+        <div class="time-label">优先级 2</div>
+        <div class="time-title">本地 conf 文件</div>
+        <div class="time-desc">读取 ~/.fsd/conf 中缓存的 token，检查有效期，未过期则直接使用。</div>
+      </div>
+      <div class="timeline-item">
+        <div class="time-label">优先级 3（兜底）</div>
+        <div class="time-title">CatClaw MOA 换票</div>
+        <div class="time-desc">当前两种方式均不可用时，自动调用 MOA 换票接口获取新 token 并写入本地 conf。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">代码集成 API</div>
+    <p>fsd-sso 对外暴露两个核心函数，供 fsd CLI 和其他工具集成使用：</p>
+    <div class="code-block">
+<span class="comment">// 加载当前有效的 SSO Token</span>
+<span class="keyword">const</span> token = <span class="keyword">await</span> <span class="func">loadSsoToken</span>();
+
+<span class="comment">// 构建包含 SSO Cookie 的请求头</span>
+<span class="keyword">const</span> headers = <span class="func">buildFsdSsoCookieHeader</span>(token);
+<span class="comment">// → { Cookie: 'ssoid=xxx; ...' }</span>
+
+<span class="comment">// fsd CLI 内部每次请求 FSD API 前调用</span>
+<span class="keyword">const</span> response = <span class="keyword">await</span> <span class="func">fetch</span>(fsdApiUrl, {
+  headers: <span class="func">buildFsdSsoCookieHeader</span>(<span class="keyword">await</span> <span class="func">loadSsoToken</span>())
+});
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">401 自动修复机制</div>
+    <p>当 fsd CLI 请求 FSD API 返回 401（未授权）时，系统不会直接报错退出，而是执行以下自动修复流程：</p>
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="time-label">Step 1</div>
+        <div class="time-title">检测 401 响应</div>
+        <div class="time-desc">fsd CLI 捕获到 HTTP 401 状态码，判断为 token 过期或无效。</div>
+      </div>
+      <div class="timeline-item done">
+        <div class="time-label">Step 2</div>
+        <div class="time-title">自动判断环境</div>
+        <div class="time-desc">读取 CATCLAW_PROFILE，决定使用 MOA 换票（沙箱）还是 SSO 登录（本地）。</div>
+      </div>
+      <div class="timeline-item done">
+        <div class="time-label">Step 3</div>
+        <div class="time-title">执行换票 / 登录</div>
+        <div class="time-desc">调用对应的认证方式获取新 token，写入本地 conf 文件。</div>
+      </div>
+      <div class="timeline-item done">
+        <div class="time-label">Step 4</div>
+        <div class="time-title">自动重试原请求</div>
+        <div class="time-desc">携带新 token 重新发起原始请求，对调用方完全透明。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4. 在主 Skill 中的使用场景 ===== -->
+<section id="usage">
+  <h2><span class="icon">🔗</span> 在主 Skill 中的使用场景</h2>
+
+  <p style="margin-bottom:1rem;color:var(--text-secondary);">fsd 和 fsd-sso 作为能力层 Skill，被主 Skill（adfe-b-publish-automation）及其关联 Skill 封装调用。以下是具体的调用场景：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>命令</th><th>封装 Skill</th><th>使用场景</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>fsd pub list</code></td>
+          <td>adfe-b-launch-plan</td>
+          <td>搜索上线计划，按关键词/日期/状态筛选当前生效的上线计划</td>
+        </tr>
+        <tr>
+          <td><code>fsd pub info</code></td>
+          <td>adfe-b-launch-plan</td>
+          <td>查询上线计划详情，获取包含的应用列表、负责人、部署状态</td>
+        </tr>
+        <tr>
+          <td><code>fsd pub status</code></td>
+          <td>adfe-b-launch-plan-info</td>
+          <td>获取每个应用的「合入集成分支」状态，用于 Step 1 PR 合入检查</td>
+        </tr>
+        <tr>
+          <td><code>fsd pub pre-rtag</code></td>
+          <td>adfe-b-launch-plan-info</td>
+          <td>获取每个应用的「备机验证」结果，用于 Step 3 备机验证检查</td>
+        </tr>
+        <tr>
+          <td><code>fsd-sso login</code></td>
+          <td>主 Skill 自动调用</td>
+          <td>当任何 fsd 命令返回"认证失败"时，自动执行登录后重试</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top: 1rem;">
+    <div class="card-title">调用链路示意</div>
+    <div class="arch-diagram">
+      <div class="arch-label">触发层</div>
+      <div class="arch-row">
+        <div class="arch-box trigger">Cron 定时任务</div>
+      </div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-label">编排层</div>
+      <div class="arch-row">
+        <div class="arch-box core">adfe-b-publish-automation<br><small>主 Skill</small></div>
+      </div>
+      <div class="arch-arrow">↓ 编排调用</div>
+      <div class="arch-label">封装层</div>
+      <div class="arch-row">
+        <div class="arch-box infra">adfe-b-launch-plan<br><small>pub list / pub info</small></div>
+        <div class="arch-box infra">adfe-b-launch-plan-info<br><small>pub status / pub pre-rtag</small></div>
+      </div>
+      <div class="arch-arrow">↓ CLI 调用</div>
+      <div class="arch-label">能力层</div>
+      <div class="arch-row">
+        <div class="arch-box external">fsd CLI<br><small>实际执行命令</small></div>
+        <div class="arch-box external">fsd-sso<br><small>认证保障</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5. 面试话术 ===== -->
+<section id="interview">
+  <h2><span class="icon">🎤</span> 面试话术参考</h2>
+
+  <div class="interview-card">
+    <div class="q">Q：fsd 和 fsd-sso 的分层设计有什么好处？</div>
+    <div class="a">
+      我们把 FSD 体系的 CLI 工具拆分为两个独立的 Skill：<strong>fsd 负责业务命令</strong>（部署、交付、测试、上线计划），<strong>fsd-sso 负责认证基础设施</strong>（登录、token 管理、环境适配）。这种分层设计有三个好处：
+      <br><br>
+      第一，<strong>关注点分离</strong>。fsd 只关心"做什么"（部署一个应用、查一个上线计划），不需要关心"以谁的身份做"。认证逻辑完全封装在 fsd-sso 中，对业务层透明。
+      <br><br>
+      第二，<strong>独立迭代</strong>。认证机制的变更（比如 SSO 升级、MOA 换票协议变化）只需要升级 fsd-sso，不影响 fsd 的任何业务命令。反过来，fsd 新增命令也不需要动认证层。
+      <br><br>
+      第三，<strong>复用性</strong>。fsd-sso 提供的 <code>loadSsoToken()</code> 和 <code>buildFsdSsoCookieHeader()</code> 不仅被 fsd 使用，也可以被其他需要 FSD 认证的工具直接复用，避免重复实现登录逻辑。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：401 自动修复机制是怎么实现的？</div>
+    <div class="a">
+      这是一个典型的<strong>「拦截 → 修复 → 重试」三段式自愈模式</strong>。当 fsd CLI 请求 FSD 平台 API 返回 HTTP 401 时，系统不会直接报错退出，而是进入自动修复流程：
+      <br><br>
+      首先，<strong>环境判断</strong>。读取 <code>CATCLAW_PROFILE</code> 环境变量，判断当前是沙箱环境还是本地环境。沙箱环境使用 MOA 换票（无需浏览器交互），本地环境使用标准 SSO 登录。
+      <br><br>
+      然后，<strong>执行换票/登录</strong>。调用 <code>fsd-sso login</code>，获取新的 token 并写入本地 <code>~/.fsd/conf</code> 文件。
+      <br><br>
+      最后，<strong>透明重试</strong>。携带新 token 重新发起原始请求。整个过程对上层调用方完全透明——上层只是调了一个 <code>fsd pub list</code>，感知不到中间经历了 401 → 换票 → 重试的过程。
+      <br><br>
+      这个设计的核心价值在于，自动化流程中的 <strong>token 过期不再是阻塞事件</strong>。以前 token 一过期，整个 Cron 任务就会失败，需要人工介入重新登录。现在系统能自愈，只有在自动修复也失败的极端情况下才会通知值班人。
+    </div>
+  </div>
+</section>
+
+<!-- ===== 6. 简历要点 ===== -->
+<section id="resume">
+  <h2><span class="icon">📝</span> 简历要点（可直接引用）</h2>
+
+  <div class="resume-block">
+    <h3>FSD 生态相关项目经历</h3>
+    <div class="point">设计并实现了 FSD CLI 与 SSO 认证的分层架构，将业务命令（部署/交付/测试/上线）与认证基础设施解耦为独立模块，支持独立迭代和跨工具复用，累计迭代至 V14+V3 版本。</div>
+    <div class="point">实现了 401 自动修复机制（拦截 → 环境判断 → 换票/登录 → 透明重试），使自动化流程中的 token 过期从阻塞事件降级为无感自愈，消除了人工介入需求。</div>
+    <div class="point">设计了三级 Token 优先级策略（环境变量 → 本地缓存 → MOA 换票），结合 CATCLAW_PROFILE 环境自动识别，确保 CLI 工具在本地开发、CI 流水线、沙箱环境三种场景下均能正确获取身份凭证。</div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-title">推荐简历关键词</div>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">FSD 平台</span>
+      <span class="tag tag-blue">CLI 工具</span>
+      <span class="tag tag-blue">SSO 认证</span>
+      <span class="tag tag-green">Token 管理</span>
+      <span class="tag tag-green">自动换票</span>
+      <span class="tag tag-yellow">分层架构</span>
+      <span class="tag tag-yellow">401 自愈</span>
+      <span class="tag tag-red">研发效能</span>
+      <span class="tag tag-red">DevOps</span>
+      <span class="tag tag-blue">MOA 换票</span>
+      <span class="tag tag-green">环境适配</span>
+      <span class="tag tag-yellow">微服务编排</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  基于 fsd V14 + fsd-sso V3 分析整理 · 2025-07
+</div>
+
+</div><!-- .container -->
+
+<script>
+  // 导航高亮
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.top-nav .nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

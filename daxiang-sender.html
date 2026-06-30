@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大象消息发送 Skill — 技术深度分析</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    scroll-behavior: smooth;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .top-nav .logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+  .top-nav .logo a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .top-nav .logo a:hover {
+    text-decoration: underline;
+  }
+  .top-nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .top-nav .nav-links a {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .top-nav .nav-links a:hover,
+  .top-nav .nav-links a.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  /* ===== 主内容 ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 2rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero .stat-item {
+    text-align: center;
+  }
+  .hero .stat-item .num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 通用 Section ===== */
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .icon {
+    font-size: 1.3rem;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--primary);
+  }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ===== 标签 ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: var(--success-light); color: #065f46; }
+  .tag-yellow { background: var(--accent-light); color: #92400e; }
+  .tag-red { background: var(--danger-light); color: #991b1b; }
+
+  /* ===== 流程时间线 ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+  }
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .timeline-item .time-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.15rem;
+  }
+  .timeline-item .time-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .timeline-item .time-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f8fafc; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #34d399; }
+  .code-block .func { color: #60a5fa; }
+
+  /* ===== 架构图 ===== */
+  .arch-diagram {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arch-box.trigger { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .arch-box.core { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
+  .arch-box.infra { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+  .arch-box.external { background: #f3e8ff; color: #6b21a8; border: 1px solid #c4b5fd; }
+  .arch-arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .arch-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== 面试话术 ===== */
+  .interview-card {
+    background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .interview-card .q {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .interview-card .a {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .interview-card .a strong { color: var(--primary); }
+
+  /* ===== 亮点指标 ===== */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .highlight-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .highlight-item .hi-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .highlight-item .hi-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+
+  /* ===== 简历要点 ===== */
+  .resume-block {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+  .resume-block h3 {
+    color: #60a5fa;
+    margin-top: 0;
+  }
+  .resume-block .point {
+    margin-bottom: 0.75rem;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .resume-block .point::before {
+    content: '\25B8';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 640px) {
+    .container { padding: 72px 1rem 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero .stats { gap: 1.5rem; }
+    .top-nav { padding: 0 1rem; gap: 1rem; }
+    .highlight-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<nav class="top-nav">
+  <div class="logo"><a href="index.html">&#x2190; AutoPublish</a></div>
+  <div class="nav-links">
+    <a href="#overview">项目概述</a>
+    <a href="#msg-types">消息类型</a>
+    <a href="#tech-detail">技术细节</a>
+    <a href="#file-relay">文件中转模式</a>
+    <a href="#interview">面试话术</a>
+    <a href="#resume">简历要点</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">IM 消息通道</div>
+  <h1>大象消息发送 Skill</h1>
+  <p class="subtitle">
+    统一的大象 IM 消息投递能力封装，基于大象开放平台 API 实现文本、Markdown、链接、文件、图片、名片、模板、富文本等全类型消息发送，支持 @人、@所有人、@机器人及动态消息更新，被多个团队和 Skill 复用的基础通信通道。
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">10+</div>
+      <div class="label">消息类型</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">V6</div>
+      <div class="label">迭代版本</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">QPS&lt;5</div>
+      <div class="label">限流策略</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">OAuth2</div>
+      <div class="label">认证机制</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 1. 项目概述 ===== -->
+<section id="overview">
+  <h2><span class="icon">&#x1F4CB;</span> 项目概述</h2>
+
+  <div class="card">
+    <div class="card-title">&#x1F3AF; Skill 定位</div>
+    <p>daxiang-sender 是一个<strong>统一的大象 IM 消息投递能力封装</strong>，通过大象开放平台 API 实现各类消息的发送。它不是一个独立运行的业务系统，而是作为基础通信能力被多个团队和 Skill 复用——例如自动化发版系统（adfe-b-publish-automation）通过调用 daxiang-sender 在发版群中发送催促消息和上线计划通知。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F4E6; 核心脚本</div>
+    <p>整个 Skill 的核心实现是 <code>scripts/send.py</code>，一个 Python 3 脚本，依赖 <code>requests</code> 库进行 HTTP 请求和 <code>PyJWT</code> 库进行 Token 处理。脚本通过命令行参数接收消息类型、目标群/用户、凭证等信息，完成 OAuth2 认证后调用大象开放平台的消息发送接口。</p>
+  </div>
+
+  <h3>技术栈一览</h3>
+  <div style="margin-top: 0.5rem;">
+    <span class="tag tag-blue">Python 3</span>
+    <span class="tag tag-blue">requests</span>
+    <span class="tag tag-blue">PyJWT</span>
+    <span class="tag tag-green">OAuth2 / OIDC</span>
+    <span class="tag tag-green">大象开放平台 API</span>
+    <span class="tag tag-yellow">CLI 参数化</span>
+    <span class="tag tag-yellow">KMS 凭证管理</span>
+    <span class="tag tag-red">QPS 限流</span>
+    <span class="tag tag-red">文件中转模式</span>
+  </div>
+
+  <h3>Skill 基本信息</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>属性</th><th>值</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>名称</td><td>daxiang-sender</td></tr>
+        <tr><td>版本</td><td>V6</td></tr>
+        <tr><td>作者</td><td>suhao20</td></tr>
+        <tr><td>更新者</td><td>wuqiqi05</td></tr>
+        <tr><td>核心脚本</td><td>scripts/send.py</td></tr>
+        <tr><td>语言</td><td>Python 3</td></tr>
+        <tr><td>依赖</td><td>requests, PyJWT</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 2. 消息类型全景 ===== -->
+<section id="msg-types">
+  <h2><span class="icon">&#x1F4E8;</span> 消息类型全景</h2>
+
+  <p style="margin-bottom:1rem;color:var(--text-secondary);">daxiang-sender 封装了大象开放平台支持的所有主流消息类型，通过统一的命令行参数接口对外暴露，调用方无需关心底层 API 细节。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>类型</th><th>命令参数</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="tag tag-blue">text</span></td><td><code>--text</code></td><td>纯文本消息，最基础的消息类型</td></tr>
+        <tr><td><span class="tag tag-blue">markdown</span></td><td><code>--markdown --text</code></td><td>Markdown 格式消息，支持标题、列表、加粗等富文本排版</td></tr>
+        <tr><td><span class="tag tag-green">link</span></td><td><code>--link-url --link-title</code></td><td>链接卡片消息，展示为可点击的链接预览</td></tr>
+        <tr><td><span class="tag tag-green">multilink</span></td><td><code>--multilink-json</code></td><td>多链接卡片消息，一条消息中包含多个链接</td></tr>
+        <tr><td><span class="tag tag-yellow">file</span></td><td><code>--file</code></td><td>文件消息，发送本地文件到会话</td></tr>
+        <tr><td><span class="tag tag-yellow">image</span></td><td><code>--image</code></td><td>图片消息，发送本地图片到会话</td></tr>
+        <tr><td><span class="tag tag-red">vcard</span></td><td><code>--vcard</code></td><td>个人名片消息，展示用户的联系方式卡片</td></tr>
+        <tr><td><span class="tag tag-red">gvcard</span></td><td><code>--gvcard</code></td><td>群名片消息，展示群聊的邀请卡片</td></tr>
+        <tr><td><span class="tag tag-blue">quote</span></td><td><code>--quote-id --text</code></td><td>引用回复消息，回复某条已发送的消息</td></tr>
+        <tr><td><span class="tag tag-green">custom</span></td><td><code>--template-id</code></td><td>模板消息，支持自定义按钮和交互组件</td></tr>
+        <tr><td><span class="tag tag-yellow">general</span></td><td><code>--general-json</code></td><td>富文本消息，JSON 定义的复杂富文本结构</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== 3. 核心技术细节 ===== -->
+<section id="tech-detail">
+  <h2><span class="icon">&#x2699;&#xFE0F;</span> 核心技术细节</h2>
+
+  <div class="card">
+    <div class="card-title">&#x1F510; OAuth2 Token 管理</div>
+    <p>daxiang-sender 通过 OAuth2 Client Credentials 流程获取 accessToken，认证端点为 <code>https://ssosv.sankuai.com/sson/auth/oidc/v1/token</code>。脚本在每次发送消息前自动获取 Token，并在内存中缓存以减少重复请求。Token 过期后自动重新获取，全程无需人工介入。</p>
+    <div class="code-block">
+<span class="comment"># OAuth2 Token 获取流程</span>
+<span class="keyword">def</span> <span class="func">get_access_token</span>(client_id, client_secret):
+    url = <span class="string">"https://ssosv.sankuai.com/sson/auth/oidc/v1/token"</span>
+    data = {
+        <span class="string">"grant_type"</span>: <span class="string">"client_credentials"</span>,
+        <span class="string">"client_id"</span>: client_id,
+        <span class="string">"client_secret"</span>: client_secret,
+    }
+    resp = requests.<span class="func">post</span>(url, data=data)
+    <span class="keyword">return</span> resp.json()[<span class="string">"access_token"</span>]
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F4CA; 三级凭证优先级</div>
+    <p>为适配不同使用场景（CI/CD 管道、本地调试、团队共享配置），daxiang-sender 设计了三级凭证读取优先级机制，高优先级覆盖低优先级：</p>
+    <div class="arch-diagram">
+      <div class="arch-label">最高优先级</div>
+      <div class="arch-row">
+        <div class="arch-box trigger" style="min-width:280px;">命令行参数<br><small>--client-id / --client-secret</small></div>
+      </div>
+      <div class="arch-arrow">&#x2193; 未指定则降级</div>
+      <div class="arch-row">
+        <div class="arch-box core" style="min-width:280px;">环境变量<br><small>DX_CLIENT_ID / DX_CLIENT_SECRET</small></div>
+      </div>
+      <div class="arch-arrow">&#x2193; 未指定则降级</div>
+      <div class="arch-label">最低优先级</div>
+      <div class="arch-row">
+        <div class="arch-box infra" style="min-width:280px;">配置文件<br><small>~/.daxiang.json</small></div>
+      </div>
+    </div>
+    <p style="margin-top:0.5rem;">这套优先级设计的核心考量是<strong>沙箱环境兼容性</strong>。AI Agent 沙箱环境会预设 <code>DX_CLIENT_ID</code> 环境变量指向沙箱 Bot，如果使用配置文件方式传入凭证，会被环境变量覆盖。因此在自动化发版系统中，始终通过命令行参数（最高优先级）显式传入从 KMS 动态获取的凭证，确保使用正确的机器人身份。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F465; @ 提及的实现机制</div>
+    <p>大象 IM 的 @ 功能需要同时满足两个条件才能生效：</p>
+    <p style="margin-top:0.5rem;"><strong>条件一：</strong>在消息的 <code>extension.at</code> 字段中设置需要 @ 的 uid 列表，这告诉大象服务端「这条消息要通知哪些人」。</p>
+    <p style="margin-top:0.5rem;"><strong>条件二：</strong>在 <code>body.text</code> 中插入 <code>[@姓名|mtdaxiang://profile?uid=xxx]</code> 格式的高亮文本，这让消息在客户端展示时呈现蓝色可点击的 @ 样式。</p>
+    <div class="code-block">
+<span class="comment"># @ 协议文本格式</span>
+<span class="string">"[@张三|mtdaxiang://profile?uid=100001]"</span>
+<span class="string">"[@李四|mtdaxiang://profile?uid=100002]"</span>
+
+<span class="comment"># 消息结构示例</span>
+{
+  <span class="string">"body"</span>: {
+    <span class="string">"text"</span>: <span class="string">"请 [@张三|mtdaxiang://profile?uid=100001] 尽快合入 PR"</span>
+  },
+  <span class="string">"extension"</span>: {
+    <span class="string">"at"</span>: [<span class="string">"100001"</span>]
+  }
+}
+    </div>
+    <p style="margin-top:0.5rem;">缺少任一条件都会导致 @ 失效：只设 extension.at 不插入协议文本，对方收到通知但消息中看不到高亮；只插入协议文本不设 extension.at，消息中有蓝色文字但对方不会收到 @ 通知。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F3AF; custom-at 模式</div>
+    <p><code>--custom-at</code> 参数允许消息发送者自行控制 @ 文本在消息中的位置。默认模式下，send.py 会自动在消息末尾追加所有 @ 协议文本。开启 custom-at 后，调用方需要在 <code>--text</code> 内容中预先插入好 @ 协议文本的位置，send.py 仅负责设置 <code>extension.at</code> 字段。</p>
+    <p style="margin-top:0.5rem;">这在自动化发版系统中被广泛使用——催促消息中需要在每个应用名后面 @ 对应的 RD，而非在消息末尾统一 @。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F504; 动态消息</div>
+    <p>daxiang-sender 支持后续<strong>更新</strong>和<strong>撤回</strong>已发送的消息。发送成功后返回 messageId，调用方可以使用这个 ID 对消息进行修改或撤回操作。典型应用场景：部署状态轮询过程中，先发一条"部署中..."的消息，部署完成后更新为最终结果，避免群内消息刷屏。</p>
+  </div>
+</section>
+
+<!-- ===== 4. 文件中转模式 ===== -->
+<section id="file-relay">
+  <h2><span class="icon">&#x1F4E4;</span> 在主 Skill 中的使用模式</h2>
+
+  <div class="card">
+    <div class="card-title">&#x1F4C1; 「文件中转」模式详解</div>
+    <p>这是自动化发版系统（adfe-b-publish-automation）调用 daxiang-sender 时的核心设计模式，从历史事故中提炼而来。</p>
+    <p style="margin-top:0.5rem;"><strong>问题根因：</strong>大象 @ 协议文本 <code>[@姓名|mtdaxiang://profile?uid=xxx]</code> 中包含 <code>|</code>（管道）、<code>://</code>、<code>[</code>、<code>]</code> 等 Bash 特殊字符。如果将消息内容直接 inline 到 shell 命令的 <code>--text</code> 参数中，Bash 会错误解析这些字符，导致消息被截断或命令执行失败。</p>
+  </div>
+
+  <h3>三步文件中转法</h3>
+  <div class="timeline">
+    <div class="timeline-item done">
+      <div class="time-label">Step 1 &middot; write</div>
+      <div class="time-title">消息内容写入临时文件</div>
+      <div class="time-desc">
+        使用 AI Agent 的 write 工具将完整消息内容（包含 @ 协议文本）写入 <code>/tmp/msg.txt</code>。write 工具直接操作文件系统，内容不经过 Bash 解析，因此特殊字符被完整保留。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">Step 2 &middot; write</div>
+      <div class="time-title">@ 列表写入临时文件</div>
+      <div class="time-desc">
+        将需要 @ 的人员信息写入 <code>/tmp/at_list.txt</code>，每行格式为 <code>uid:姓名</code>。这个文件用于 Python 中间脚本构建 <code>extension.at</code> 字段。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">Step 3 &middot; bash</div>
+      <div class="time-title">Python 中间脚本读文件并调用 send.py</div>
+      <div class="time-desc">
+        Python 中间脚本从文件中读取消息内容和 @ 列表，通过 <code>subprocess.call</code> 以参数列表形式传给 send.py。由于 Python 的 subprocess 使用 exec 系统调用而非 shell 解析，消息内容中的特殊字符不会被二次解析。
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">
+<span class="comment"># Step 1: AI Agent write 工具写入消息文件（不经过 bash）</span>
+write &rarr; /tmp/msg_step1.txt
+<span class="comment"># 文件内容示例：</span>
+<span class="comment"># 以下应用尚未合入，请尽快处理：</span>
+<span class="comment"># - app-foo: [@张三|mtdaxiang://profile?uid=100001]</span>
+
+<span class="comment"># Step 2: AI Agent write 工具写入 @ 列表文件</span>
+write &rarr; /tmp/at_list.txt
+<span class="comment"># 每行格式: uid:姓名</span>
+<span class="comment"># 100001:张三</span>
+<span class="comment"># 100002:李四</span>
+
+<span class="comment"># Step 3: Python 中间脚本读取文件 → 调用 send.py</span>
+<span class="keyword">import</span> subprocess
+
+<span class="keyword">with</span> <span class="func">open</span>(<span class="string">"/tmp/msg_step1.txt"</span>) <span class="keyword">as</span> f:
+    text = f.read().strip()
+
+cmd = [<span class="string">"python3"</span>, send_py, <span class="string">"send"</span>,
+       <span class="string">"--group"</span>, group_id,
+       <span class="string">"--client-id"</span>, dx_client_id,
+       <span class="string">"--text"</span>, text,
+       <span class="string">"--custom-at"</span>]
+
+subprocess.<span class="func">call</span>(cmd)  <span class="comment"># 参数列表形式，不经过 shell</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title">&#x1F4A1; 为什么这样设计</div>
+    <p>这个设计的本质是<strong>绕过 Bash 的字符串解析</strong>。三个关键的"不经过"：</p>
+    <p style="margin-top:0.5rem;">1. <strong>消息内容不经过 Bash</strong>：通过 AI Agent 的 write 工具直接写入文件，Bash 完全不参与。</p>
+    <p style="margin-top:0.5rem;">2. <strong>文件读取不经过 Bash</strong>：Python 脚本用 <code>open()</code> 读取文件内容，Bash 完全不参与。</p>
+    <p style="margin-top:0.5rem;">3. <strong>参数传递不经过 Bash</strong>：<code>subprocess.call(cmd_list)</code> 使用参数列表而非字符串形式，底层用 exec 而非 shell，Bash 完全不参与。</p>
+    <p style="margin-top:0.5rem;">这套方案从历史事故中提炼，已被团队作为标准实践推广，所有需要发送包含特殊字符的大象消息的 Skill 都采用这个模式。</p>
+  </div>
+</section>
+
+<!-- ===== 5. 面试话术 ===== -->
+<section id="interview">
+  <h2><span class="icon">&#x1F3A4;</span> 面试话术参考</h2>
+
+  <div class="interview-card">
+    <div class="q">Q：消息发送为什么要通过文件中转，而不是直接把内容放在命令行参数里？</div>
+    <div class="a">
+      这是从一个线上事故中提炼出来的设计。我们的大象 IM @ 协议文本格式是 <code>[@姓名|mtdaxiang://profile?uid=xxx]</code>，里面包含 <code>|</code>（管道符）、<code>://</code>、<code>[</code>、<code>]</code> 这些 Bash 特殊字符。如果直接把这些内容放在 shell 命令的 <code>--text</code> 参数里，Bash 会把 <code>|</code> 解释为管道、把 <code>[]</code> 解释为通配符，导致消息被截断甚至命令执行失败。<br><br>
+      我的解决方案是<strong>「三步文件中转法」</strong>：第一步，用 AI Agent 的 write 工具把消息内容直接写入临时文件，这一步完全不经过 Bash；第二步，把 @ 人员列表也写入文件；第三步，用 Python 中间脚本读取文件，以 <strong>subprocess.call 的参数列表形式</strong>（而非字符串形式）调用 send.py。整个链路中消息内容的三次传递都绕过了 Bash 的字符串解析，从根本上杜绝了特殊字符被截断的问题。这套方案后来成了团队的标准实践，所有涉及大象消息发送的 Skill 都使用这个模式。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：凭证的三级优先级是怎么设计的，为什么要这样分层？</div>
+    <div class="a">
+      daxiang-sender 设计了<strong>命令行参数 > 环境变量 > 配置文件</strong>三级凭证读取优先级。设计这套分层机制的核心驱动力是<strong>沙箱环境兼容性</strong>。<br><br>
+      <strong>配置文件</strong>（<code>~/.daxiang.json</code>）是最低优先级，适合本地开发调试场景，开发者把凭证写一次后续不用重复输入。<strong>环境变量</strong>（<code>DX_CLIENT_ID</code>）优先级高于配置文件，适合 CI/CD 管道等标准化环境。但问题出在 AI Agent 的沙箱环境——沙箱会预设 <code>DX_CLIENT_ID</code> 环境变量指向沙箱 Bot 的凭证。如果我们在配置文件里写了正确的生产凭证，会被沙箱的环境变量覆盖，导致「机器人不在该群」等鉴权错误。<br><br>
+      因此<strong>命令行参数</strong>（<code>--client-id</code>）被设计为最高优先级。在自动化发版系统中，我们从 KMS 动态获取凭证，然后通过命令行参数显式注入，确保无论沙箱环境变量怎么设置，都能使用正确的机器人身份。这是一个典型的「环境感知型凭证管理」设计。
+    </div>
+  </div>
+</section>
+
+<!-- ===== 6. 简历要点 ===== -->
+<section id="resume">
+  <h2><span class="icon">&#x1F4DD;</span> 简历要点（可直接引用）</h2>
+
+  <div class="resume-block">
+    <h3>项目经历描述</h3>
+    <div class="point">设计并实现了统一的大象 IM 消息投递 Skill（daxiang-sender），封装 10+ 种消息类型（文本/Markdown/链接/文件/图片/名片/模板/富文本等），通过 OAuth2 认证和三级凭证优先级机制适配多环境部署，被多个团队和 Skill 复用为基础通信通道。</div>
+    <div class="point">针对 AI Agent 沙箱环境下 @ 协议特殊字符被 Bash 截断的线上事故，设计了「三步文件中转法」：消息写入临时文件 → Python 中间脚本读取 → subprocess 参数列表传递，全链路绕过 Bash 解析，方案已成为团队标准实践。</div>
+    <div class="point">设计了命令行参数 > 环境变量 > 配置文件的三级凭证优先级机制，解决了沙箱环境变量覆盖导致的鉴权错误问题，结合 KMS 动态凭证读取实现了安全的自动化凭证管理。</div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-title">&#x1F3F7;&#xFE0F; 推荐简历关键词</div>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">大象开放平台</span>
+      <span class="tag tag-blue">OAuth2</span>
+      <span class="tag tag-blue">IM 消息通道</span>
+      <span class="tag tag-green">Python CLI</span>
+      <span class="tag tag-green">凭证管理</span>
+      <span class="tag tag-yellow">文件中转模式</span>
+      <span class="tag tag-yellow">沙箱兼容</span>
+      <span class="tag tag-red">KMS</span>
+      <span class="tag tag-red">防错设计</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  基于 daxiang-sender Skill V6 分析整理 &middot; 2025
+</div>
+
+</div><!-- .container -->
+
+<script>
+  // 导航高亮
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.top-nav .nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

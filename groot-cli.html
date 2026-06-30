@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Groot 发版管理 CLI Skill — 技术深度分析</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    scroll-behavior: smooth;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .top-nav .logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+  .top-nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .top-nav .nav-links a {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .top-nav .nav-links a:hover,
+  .top-nav .nav-links a.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  /* ===== 主内容 ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 2rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero .stat-item {
+    text-align: center;
+  }
+  .hero .stat-item .num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 通用 Section ===== */
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .icon {
+    font-size: 1.3rem;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--primary);
+  }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ===== 标签 ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: var(--success-light); color: #065f46; }
+  .tag-yellow { background: var(--accent-light); color: #92400e; }
+  .tag-red { background: var(--danger-light); color: #991b1b; }
+
+  /* ===== 流程时间线 ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+  }
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .timeline-item .time-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.15rem;
+  }
+  .timeline-item .time-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .timeline-item .time-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f8fafc; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #34d399; }
+  .code-block .func { color: #60a5fa; }
+
+  /* ===== 架构图 ===== */
+  .arch-diagram {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arch-box.trigger { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .arch-box.core { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
+  .arch-box.infra { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+  .arch-box.external { background: #f3e8ff; color: #6b21a8; border: 1px solid #c4b5fd; }
+  .arch-arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .arch-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== 面试话术 ===== */
+  .interview-card {
+    background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .interview-card .q {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .interview-card .a {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .interview-card .a strong { color: var(--primary); }
+
+  /* ===== 亮点指标 ===== */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .highlight-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .highlight-item .hi-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .highlight-item .hi-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+
+  /* ===== 简历要点 ===== */
+  .resume-block {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+  .resume-block h3 {
+    color: #60a5fa;
+    margin-top: 0;
+  }
+  .resume-block .point {
+    margin-bottom: 0.75rem;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .resume-block .point::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 640px) {
+    .container { padding: 72px 1rem 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero .stats { gap: 1.5rem; }
+    .top-nav { padding: 0 1rem; gap: 1rem; }
+    .highlight-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<nav class="top-nav">
+  <div class="logo">🤖 AutoPublish</div>
+  <div class="nav-links">
+    <a href="index.html">← 主页</a>
+    <a href="#overview">项目概述</a>
+    <a href="#commands">命令全景</a>
+    <a href="#tech-detail">技术细节</a>
+    <a href="#usage">使用场景</a>
+    <a href="#interview">面试话术</a>
+    <a href="#resume">简历要点</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">发版执行引擎</div>
+  <h1>Groot 发版管理 CLI Skill</h1>
+  <p class="subtitle">
+    通过 HTTP 调用 Groot 服务端 API，在无浏览器/无交互环境下完成发版项目查询、发布触发、灰度放量管理及值班人查询。既是自动化发版流程的核心执行层，也是值班人身份校验的关键节点。
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">4</div>
+      <div class="label">大命令组</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">V11</div>
+      <div class="label">迭代版本</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">4 级</div>
+      <div class="label">认证优先</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">REST</div>
+      <div class="label">API 驱动</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 1. 项目概述 ===== -->
+<section id="overview">
+  <h2><span class="icon">📋</span> 项目概述</h2>
+
+  <div class="card">
+    <div class="card-title">🎯 定位</div>
+    <p><strong>发版执行引擎 + 值班人校验工具</strong>，是自动化发版流程的核心执行层。主 Skill（adfe-b-publish-automation）编排流程时，所有对 Groot 部署平台的操作均通过本 Skill 完成——项目列表查询、Stage/Prod 发布触发、灰度流量管控、部署状态轮询、值班人 oncall 校验。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📦 NPM 包信息</div>
+    <p>包名：<code>@adfe/groot-cli</code>（要求 >= 1.0.12，需要 oncall 子命令支持）</p>
+    <p style="margin-top:0.5rem;">作者：yangshang | 版本：V11 | 通信协议：REST API over HTTPS</p>
+  </div>
+
+  <h3>技术标签</h3>
+  <div style="margin-top: 0.5rem;">
+    <span class="tag tag-blue">Node.js CLI</span>
+    <span class="tag tag-blue">REST API</span>
+    <span class="tag tag-green">SSO Client Credentials</span>
+    <span class="tag tag-green">Token 四级优先</span>
+    <span class="tag tag-yellow">dry-run 预检</span>
+    <span class="tag tag-yellow">状态轮询</span>
+    <span class="tag tag-red">灰度管理</span>
+    <span class="tag tag-red">值班人校验</span>
+  </div>
+</section>
+
+<!-- ===== 2. 命令全景 ===== -->
+<section id="commands">
+  <h2><span class="icon">🗂️</span> 命令全景（4 组）</h2>
+
+  <div class="card">
+    <div class="card-title">🔍 项目查询组</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>命令</th><th>功能</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>list-projects</code></td><td>列出所有可部署项目</td><td>用于与上线计划做匹配，筛选出 A 类（Groot 可部署）项目</td></tr>
+          <tr><td><code>list-decouple-projects</code></td><td>列出解耦项目</td><td>解耦项目有独立的发版时间窗口（14:00-17:00）</td></tr>
+          <tr><td><code>list-mrn-bundles</code></td><td>列出 MRN Bundle 列表</td><td>用于跨端应用的部署管理</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🚀 发布管理组</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>命令</th><th>功能</th><th>关键参数</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>publish</code></td><td>触发发布（test/stage/prod）</td><td>--env, --branch, --mis, --dry-run</td></tr>
+          <tr><td><code>publish-status</code></td><td>查询发布状态</td><td>--id（logInfo.id）</td></tr>
+          <tr><td><code>cancel-publish</code></td><td>取消进行中的发布</td><td>--id</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎛️ 灰度管理组</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>命令</th><th>功能</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>gray full</code></td><td>全量放量</td></tr>
+          <tr><td><code>gray small-traffic</code></td><td>小流量放量</td></tr>
+          <tr><td><code>gray pause</code></td><td>暂停灰度</td></tr>
+          <tr><td><code>gray resume</code></td><td>恢复灰度</td></tr>
+          <tr><td><code>gray stop</code></td><td>停止灰度</td></tr>
+          <tr><td><code>gray immediate-full</code></td><td>立即全量（跳过灰度阶段）</td></tr>
+          <tr><td><code>gray add-whitelist</code></td><td>添加灰度白名单</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👤 值班人查询组</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>命令</th><th>功能</th><th>关键参数</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>oncall</code></td><td>查询当前值班人 MIS</td><td>--format plain（纯文本输出，供脚本管道组合）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:0.5rem;font-size:0.88rem;color:var(--text-secondary);">oncall 命令是自动化流程启动时的第一个调用——校验当前执行环境的 MIS 与排班值班人一致后，才允许继续执行后续操作。</p>
+  </div>
+</section>
+
+<!-- ===== 3. 核心技术细节 ===== -->
+<section id="tech-detail">
+  <h2><span class="icon">⚙️</span> 核心技术细节</h2>
+
+  <div class="card">
+    <div class="card-title">🔐 四级认证优先级</div>
+    <p>groot-cli 的认证凭证按以下优先级依次尝试，首个可用即生效：</p>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box trigger">优先级 1<br><small>环境变量 GROOT_TOKEN</small></div>
+        <div class="arch-box core">优先级 2<br><small>环境变量 GROOT_COOKIE</small></div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box infra">优先级 3<br><small>~/.groot/token 文件</small></div>
+        <div class="arch-box external">优先级 4<br><small>~/.groot/cookie 文件</small></div>
+      </div>
+    </div>
+    <p style="margin-top:0.75rem;font-size:0.88rem;">在自动化场景中，推荐通过环境变量注入 Token（优先级最高），避免文件竞争和容器无状态问题。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🎫 Token 获取方式</div>
+    <div class="code-block">
+<span class="comment"># 通过 mtsso-client-credentials 获取 Groot API Token</span>
+<span class="func">mtsso-client-credentials</span> <span class="string">--audience "ecbcdc79cf"</span>
+
+<span class="comment"># 返回的 Token 设置为环境变量</span>
+<span class="keyword">export</span> GROOT_TOKEN=<span class="string">"&lt;返回的 access_token&gt;"</span>
+
+<span class="comment"># 或直接在命令中使用</span>
+GROOT_TOKEN=<span class="string">"xxx"</span> <span class="func">groot</span> list-projects
+    </div>
+    <p style="margin-top:0.5rem;font-size:0.88rem;color:var(--text-secondary);">audience 值 <code>ecbcdc79cf</code> 是 Groot 服务在 SSO 中的注册标识。不同操作（list-projects vs publish）可能需要不同权限级别的 Token。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🛡️ CatClaw 环境安全校验</div>
+    <p>在 CatClaw（沙箱）环境下，groot-cli 通过 <code>GROOT_USER_TOKEN</code> 做操作人 MIS 比对，防止代他人操作：</p>
+    <div class="code-block">
+<span class="comment"># 安全校验流程</span>
+1. 从 GROOT_USER_TOKEN 解析出当前操作人的 MIS
+2. 将操作人 MIS 与 publish --mis 参数进行比对
+3. 若不一致 → 拒绝执行，抛出安全错误
+4. 若一致 → 正常执行发布操作
+
+<span class="comment"># 目的：防止 A 用户的自动化任务以 B 用户身份触发发布</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🌐 关键 API 端点</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>功能</th><th>端点（基于 https://groot.sankuai.com）</th><th>方法</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>项目列表</td><td>/api/projects</td><td>GET</td></tr>
+          <tr><td>触发发布</td><td>/api/publish</td><td>POST</td></tr>
+          <tr><td>发布状态</td><td>/api/publish/status</td><td>GET</td></tr>
+          <tr><td>取消发布</td><td>/api/publish/cancel</td><td>POST</td></tr>
+          <tr><td>灰度操作</td><td>/api/gray/*</td><td>POST</td></tr>
+          <tr><td>值班人查询</td><td>/api/oncall</td><td>GET</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧪 dry-run 预检机制</div>
+    <p>在正式部署前，系统先执行 <code>groot publish --dry-run</code> 进行预检。预检会验证：分支是否存在、项目配置是否正确、权限是否充足、是否有进行中的发布冲突。只有预检通过的项目才会进入正式部署流程，预检失败的项目直接标记为跳过并记录原因。</p>
+    <div class="code-block">
+<span class="comment"># 预检示例</span>
+<span class="func">groot</span> publish --env stage --branch feature/xxx --mis zhangsan <span class="string">--dry-run</span>
+
+<span class="comment"># 预检通过输出</span>
+<span class="string">✓ dry-run passed: ready to publish</span>
+
+<span class="comment"># 预检失败输出</span>
+<span class="keyword">✗ dry-run failed: branch "feature/xxx" not found</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔄 状态轮询机制</div>
+    <p><code>publish-status</code> 支持以下中文状态枚举，主 Skill 以 30 秒间隔轮询，最长 30 分钟超时：</p>
+    <div style="margin-top: 0.75rem;">
+      <span class="tag tag-blue">初始化</span>
+      <span class="tag tag-yellow">等待中</span>
+      <span class="tag tag-yellow">发布中</span>
+      <span class="tag tag-green">成功</span>
+      <span class="tag tag-red">失败</span>
+      <span class="tag tag-red">已取消</span>
+    </div>
+    <div class="code-block">
+<span class="comment"># 状态轮询逻辑（主 Skill 中）</span>
+<span class="keyword">while</span> (elapsed < 30min) {
+    status = <span class="func">groot</span> publish-status --id <span class="string">${logId}</span>
+    <span class="keyword">if</span> (status in [<span class="string">"成功"</span>, <span class="string">"失败"</span>, <span class="string">"已取消"</span>]) <span class="keyword">break</span>
+    <span class="func">sleep</span> 30s
+}
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4. 在主 Skill 中的使用场景 ===== -->
+<section id="usage">
+  <h2><span class="icon">🔗</span> 在主 Skill 中的使用场景</h2>
+
+  <div class="timeline">
+    <div class="timeline-item done">
+      <div class="time-label">场景一 · 值班人校验</div>
+      <div class="time-title">groot oncall → 比对当前用户 MIS</div>
+      <div class="time-desc">
+        每个 Cron 定时任务启动后的第一件事，调用 <code>groot oncall --format plain</code> 获取当天值班人 MIS，与当前执行环境的 MIS 做比对。匹配则继续执行，不匹配则静默退出——这是整个自动化流程的「入口守卫」。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">场景二 · Stage 自动部署</div>
+      <div class="time-title">groot publish --env stage --branch &lt;betaBranch&gt; --mis &lt;值班人mis&gt;</div>
+      <div class="time-desc">
+        Step 2 中对 A 类项目（Groot 管理的项目）逐个触发 Stage 部署。先 dry-run 预检，通过后正式执行，间隔 3s 防并发冲突。从 stdout 解析出 <code>logInfo.id</code> 供后续状态轮询使用。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">场景三 · 部署状态轮询</div>
+      <div class="time-title">groot publish-status --id &lt;logId&gt;</div>
+      <div class="time-desc">
+        所有项目触发部署后，以 30 秒间隔持续轮询每个项目的部署状态，最长等待 30 分钟。全部到达终态后一次性汇总结果（成功/失败/超时），通过大象私聊通知值班人。
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="time-label">场景四 · 项目匹配</div>
+      <div class="time-title">groot list-projects → 与上线计划做交集</div>
+      <div class="time-desc">
+        <code>groot list-projects</code> 返回 Groot 平台已注册的所有可部署项目列表，与上线计划中的前端应用做匹配。匹配上的归为 A 类（可自动部署），未匹配的归为 C 类（需人工处理），实现自动化范围的精确划分。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 5. 面试话术 ===== -->
+<section id="interview">
+  <h2><span class="icon">🎤</span> 面试话术参考</h2>
+
+  <div class="interview-card">
+    <div class="q">Q：四级认证优先级是怎么考虑的？</div>
+    <div class="a">
+      groot-cli 的认证设计遵循「<strong>灵活性 + 安全性</strong>」的平衡原则。四级优先级从高到低是：环境变量 GROOT_TOKEN → 环境变量 GROOT_COOKIE → ~/.groot/token 文件 → ~/.groot/cookie 文件。环境变量优先级最高，是因为在 CI/CD 和容器化场景中，环境变量注入是最标准的凭证传递方式，且不依赖文件系统状态。文件方式作为兜底，适用于本地开发场景。Token 优先于 Cookie，是因为 Token 有明确的过期时间和权限范围（scope），比 Cookie 更适合机器间通信。这种设计让同一个 CLI 既能用于自动化流水线（环境变量注入），也能用于开发者本地调试（文件存储），覆盖了所有使用场景。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：值班人校验机制如何保证发版安全？</div>
+    <div class="a">
+      值班人校验是整个自动化发版系统的「<strong>第一道安全门</strong>」。具体实现分两层：第一层是 <strong>oncall 入口守卫</strong>——每个 Cron 任务启动后第一件事就调用 <code>groot oncall --format plain</code> 获取当天值班人 MIS，与当前执行环境的 MIS 做比对，不匹配则静默退出，防止非值班人的自动化任务误触发发版。第二层是 <strong>GROOT_USER_TOKEN 操作人校验</strong>——在实际执行 publish 时，CLI 会从 GROOT_USER_TOKEN 解析出操作人身份，与 --mis 参数做二次比对，防止 A 用户的任务以 B 用户身份发布。两层校验结合，从「谁能启动流程」和「谁在执行操作」两个维度确保发版操作只能由当天值班人触发，即使 Token 泄露也无法代他人操作。
+    </div>
+  </div>
+</section>
+
+<!-- ===== 6. 简历要点 ===== -->
+<section id="resume">
+  <h2><span class="icon">📝</span> 简历要点（可直接引用）</h2>
+
+  <div class="resume-block">
+    <h3>Groot CLI Skill 相关经历</h3>
+    <div class="point">设计并实现了 Groot 发版管理 CLI Skill，封装 Groot 服务端 REST API 为命令行工具，支持项目查询、发布触发、灰度管控、状态轮询和值班人校验五大能力，作为自动化发版系统的核心执行层。</div>
+    <div class="point">设计了四级认证优先级机制（环境变量 Token → 环境变量 Cookie → 文件 Token → 文件 Cookie），兼顾 CI/CD 容器化场景和本地开发场景，通过 mtsso-client-credentials 动态获取 Token，实现凭证零硬编码。</div>
+    <div class="point">实现了 CatClaw 沙箱环境下的操作人身份安全校验（GROOT_USER_TOKEN MIS 比对），配合 oncall 值班人入口守卫，构建了「谁能启动 + 谁在操作」的双层发版安全保障，杜绝了代他人操作的风险。</div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-title">🏷️ 推荐简历关键词</div>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">CLI 工具设计</span>
+      <span class="tag tag-blue">REST API 封装</span>
+      <span class="tag tag-green">SSO 认证</span>
+      <span class="tag tag-green">Token 管理</span>
+      <span class="tag tag-yellow">灰度发布</span>
+      <span class="tag tag-yellow">dry-run 预检</span>
+      <span class="tag tag-red">安全校验</span>
+      <span class="tag tag-red">发版自动化</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  基于 groot-cli Skill V11 分析整理 · 作者 yangshang · 2026
+</div>
+
+</div><!-- .container -->
+
+<script>
+  // 导航高亮
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.top-nav .nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>
