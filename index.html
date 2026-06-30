@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>外卖广告B端自动化发版系统 — 技术深度分析</title>
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --accent: #f59e0b;
+    --accent-light: #fef3c7;
+    --success: #10b981;
+    --success-light: #d1fae5;
+    --danger: #ef4444;
+    --danger-light: #fee2e2;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    scroll-behavior: smooth;
+  }
+
+  /* ===== 顶部导航 ===== */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+  .top-nav .logo {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary);
+    white-space: nowrap;
+  }
+  .top-nav .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    flex: 1;
+  }
+  .top-nav .nav-links a {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .top-nav .nav-links a:hover,
+  .top-nav .nav-links a.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  /* ===== 主内容 ===== */
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 80px 2rem 4rem;
+  }
+
+  /* ===== Hero ===== */
+  .hero {
+    text-align: center;
+    padding: 3rem 0 2.5rem;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    line-height: 1.3;
+    margin-bottom: 1rem;
+  }
+  .hero .subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 1.5rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+  }
+  .hero .stat-item {
+    text-align: center;
+  }
+  .hero .stat-item .num {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 通用 Section ===== */
+  section {
+    margin-bottom: 2.5rem;
+  }
+  section h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  section h2 .icon {
+    font-size: 1.3rem;
+  }
+  section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 1.2rem 0 0.6rem;
+    color: var(--primary);
+  }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  /* ===== 标签 ===== */
+  .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-right: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+  .tag-blue { background: var(--primary-light); color: var(--primary); }
+  .tag-green { background: var(--success-light); color: #065f46; }
+  .tag-yellow { background: var(--accent-light); color: #92400e; }
+  .tag-red { background: var(--danger-light); color: #991b1b; }
+
+  /* ===== 流程时间线 ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: white;
+  }
+  .timeline-item.done::before {
+    background: var(--success);
+    border-color: var(--success);
+  }
+  .timeline-item .time-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: 0.15rem;
+  }
+  .timeline-item .time-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .timeline-item .time-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ===== 表格 ===== */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 0.75rem 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #f8fafc; }
+
+  /* ===== 代码块 ===== */
+  .code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Fira Code', 'Menlo', monospace;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    margin: 0.75rem 0;
+    line-height: 1.7;
+  }
+  .code-block .comment { color: #94a3b8; }
+  .code-block .keyword { color: #c084fc; }
+  .code-block .string { color: #34d399; }
+  .code-block .func { color: #60a5fa; }
+
+  /* ===== 架构图 ===== */
+  .arch-diagram {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 120px;
+    text-align: center;
+  }
+  .arch-box.trigger { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .arch-box.core { background: var(--primary-light); color: var(--primary); border: 1px solid #93c5fd; }
+  .arch-box.infra { background: var(--success-light); color: #065f46; border: 1px solid #6ee7b7; }
+  .arch-box.external { background: #f3e8ff; color: #6b21a8; border: 1px solid #c4b5fd; }
+  .arch-arrow {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .arch-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+  }
+
+  /* ===== 面试话术 ===== */
+  .interview-card {
+    background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .interview-card .q {
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+  .interview-card .a {
+    font-size: 0.9rem;
+    color: var(--text);
+    line-height: 1.8;
+  }
+  .interview-card .a strong { color: var(--primary); }
+
+  /* ===== 亮点指标 ===== */
+  .highlight-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .highlight-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .highlight-item .hi-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .highlight-item .hi-label {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+  }
+
+  /* ===== 简历要点 ===== */
+  .resume-block {
+    background: linear-gradient(135deg, #1e293b, #334155);
+    color: #f1f5f9;
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1rem 0;
+  }
+  .resume-block h3 {
+    color: #60a5fa;
+    margin-top: 0;
+  }
+  .resume-block .point {
+    margin-bottom: 0.75rem;
+    padding-left: 1.2rem;
+    position: relative;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .resume-block .point::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: #60a5fa;
+  }
+
+  /* ===== Footer ===== */
+  .footer {
+    text-align: center;
+    padding: 2rem 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+
+  /* ===== 响应式 ===== */
+  @media (max-width: 640px) {
+    .container { padding: 72px 1rem 2rem; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero .stats { gap: 1.5rem; }
+    .top-nav { padding: 0 1rem; gap: 1rem; }
+    .highlight-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 导航 ===== -->
+<nav class="top-nav">
+  <div class="logo">🤖 AutoPublish</div>
+  <div class="nav-links">
+    <a href="#overview">项目概述</a>
+    <a href="#architecture">系统架构</a>
+    <a href="#workflow">核心流程</a>
+    <a href="#tech-detail">技术细节</a>
+    <a href="#safety">安全机制</a>
+    <a href="#interview">面试话术</a>
+    <a href="#resume">简历要点</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ===== Hero ===== -->
+<div class="hero">
+  <div class="badge">AI Agent × DevOps 实战</div>
+  <h1>外卖广告B端<br>自动化发版系统</h1>
+  <p class="subtitle">
+    基于 AI Agent Skill 驱动的全流程自动化发版解决方案，覆盖 PR 合入检查、Stage 部署、备机验证、Prod 发版四大阶段，将人工发版耗时从 2-3 小时/次降至全自动零干预。
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">4</div>
+      <div class="label">核心阶段</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">9</div>
+      <div class="label">定时任务</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">6+</div>
+      <div class="label">关联 Skill</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">V56</div>
+      <div class="label">迭代版本</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 1. 项目概述 ===== -->
+<section id="overview">
+  <h2><span class="icon">📋</span> 项目概述</h2>
+
+  <div class="card">
+    <div class="card-title">🎯 项目定位</div>
+    <p>这是一个面向美团外卖广告B端前端团队的 <strong>AI Agent Skill</strong>，以「AI 驱动的 Cron 定时任务 + 多 Skill 编排」的方式，将传统手工发版流程完全自动化。每周一至周四按固定节奏自动执行 Stage/Prod 全链路发版流程，值班人仅需在关键节点做人工确认。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💡 解决的核心痛点</div>
+    <p>传统发版流程中，值班人需要手动逐一检查 20+ 前端应用的 PR 合入状态、逐个触发 Stage 部署、挨个催促未完成备机验证的同事、手工汇总上线计划信息。整个流程每次耗时 2-3 小时且高度重复，容易遗漏应用或 @错人。本系统将这些环节全部自动化，值班人从「执行者」变为「审批者」。</p>
+  </div>
+
+  <h3>技术栈一览</h3>
+  <div style="margin-top: 0.5rem;">
+    <span class="tag tag-blue">AI Agent / Skill</span>
+    <span class="tag tag-blue">Cron 定时调度</span>
+    <span class="tag tag-blue">Node.js CLI</span>
+    <span class="tag tag-green">Python 脚本</span>
+    <span class="tag tag-green">Shell 自动化</span>
+    <span class="tag tag-yellow">大象开放平台 API</span>
+    <span class="tag tag-yellow">KMS 密钥管理</span>
+    <span class="tag tag-yellow">SSO 认证</span>
+    <span class="tag tag-red">Groot 部署平台</span>
+    <span class="tag tag-red">FSD 发版平台</span>
+    <span class="tag tag-red">edopenapi 接口</span>
+  </div>
+</section>
+
+<!-- ===== 2. 系统架构 ===== -->
+<section id="architecture">
+  <h2><span class="icon">🏗️</span> 系统架构</h2>
+
+  <div class="arch-diagram">
+    <div class="arch-label">调度层</div>
+    <div class="arch-row">
+      <div class="arch-box trigger">Cron 定时任务 × 9</div>
+      <div class="arch-box trigger">值班人手动触发</div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-label">控制层（AI Agent Skill）</div>
+    <div class="arch-row">
+      <div class="arch-box core">adfe-b-publish-automation</div>
+    </div>
+    <div class="arch-arrow">↓ 编排调用</div>
+    <div class="arch-label">能力层（关联 Skill）</div>
+    <div class="arch-row">
+      <div class="arch-box infra">adfe-b-launch-plan-info<br><small>上线计划查询</small></div>
+      <div class="arch-box infra">adfe-b-launch-plan<br><small>上线计划管理</small></div>
+      <div class="arch-box infra">daxiang-sender<br><small>大象消息发送</small></div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box infra">groot-cli<br><small>部署平台 CLI</small></div>
+      <div class="arch-box infra">fsd / fsd-sso<br><small>发版平台 CLI</small></div>
+      <div class="arch-box infra">mtsso-auth<br><small>SSO 认证</small></div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-label">外部系统</div>
+    <div class="arch-row">
+      <div class="arch-box external">大象 IM</div>
+      <div class="arch-box external">Groot 部署</div>
+      <div class="arch-box external">FSD 发版</div>
+      <div class="arch-box external">edopenapi</div>
+      <div class="arch-box external">KMS</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧩 Skill 编排模式</div>
+    <p>系统采用「主 Skill + 多关联 Skill」的微服务编排模式。主 Skill（adfe-b-publish-automation）作为编排控制器，负责流程调度、状态管理和异常处理；关联 Skill 各自封装单一职责的能力（查询上线计划、发送大象消息、操作部署平台等）。这种设计实现了关注点分离，每个 Skill 可以独立迭代和复用。</p>
+  </div>
+</section>
+
+<!-- ===== 3. 核心流程 ===== -->
+<section id="workflow">
+  <h2><span class="icon">🔄</span> 核心发版流程（4 Step 流水线）</h2>
+
+  <p style="margin-bottom:1rem;color:var(--text-secondary);">整个发版周期以「周一/三 → 周二/四」为节奏，分 4 个阶段自动执行。每个阶段通过 Cron 定时触发，触发后先校验值班人身份，匹配则执行，不匹配则静默跳过。</p>
+
+  <div class="timeline">
+    <div class="timeline-item done">
+      <div class="time-label">周一/三 11:00 · 12:00 · 14:00 · 15:00</div>
+      <div class="time-title">Step 1：检查 PR 合入状态 + 催促 RD</div>
+      <div class="time-desc">
+        调用 adfe-b-launch-plan-info 获取上线计划详情 → 提取每个前端应用的「合入集成分支」状态 → 对 jobName 做前缀白名单二次校验 → 筛选未合入应用 → 对其前端 RD 做 fe-rd-list.txt 交集过滤 → 批量查询 UID 和中文姓名 → 通过 daxiang-sender 在发版群中 @ 未合入的 RD 进行催促。若全部合入则私聊通知值班人，同一天只通知一次（状态去重）。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">周一/三 16:00</div>
+      <div class="time-title">Step 2：自动部署 Stage 环境</div>
+      <div class="time-desc">
+        获取上线计划 + Groot 项目列表 → 将前端应用分为三类：A（Groot 部署）、B（Plus 平台）、C（未录入）→ 私聊通知值班人部署概况 → 对 A 类项目先执行 dry-run 预检 → 通过预检的逐个正式部署（间隔 3s 防并发）→ 轮询部署状态（30s/次，最长 30min）→ 汇总结果私聊通知值班人。
+      </div>
+    </div>
+
+    <div class="timeline-item done">
+      <div class="time-label">周二/四 11:00 · 12:00 · 14:00</div>
+      <div class="time-title">Step 3：检查备机验证 + 催促 RD</div>
+      <div class="time-desc">
+        与 Step 1 同构但检查维度不同：提取每个应用的「备机验证」状态 → 非 ✅ 的视为未完成 → 催促未完成应用的前端 RD → 全部完成则私聊通知值班人。同样有状态去重和前端 RD 过滤机制。
+      </div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="time-label">周二/四 15:30</div>
+      <div class="time-title">Step 4：发版前确认 — 私聊上线计划详情</div>
+      <div class="time-desc">
+        获取完整上线计划详情 → 在消息头部添加发版时间窗口提醒（解耦项目 14:00-17:00、其他项目 20:00 后）→ 通过 Markdown 格式私聊发送给值班人，值班人人工核查后手动触发 Prod 发版。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 4. 技术细节 ===== -->
+<section id="tech-detail">
+  <h2><span class="icon">⚙️</span> 关键技术细节</h2>
+
+  <div class="card">
+    <div class="card-title">🔐 多层认证体系</div>
+    <p>系统涉及四套独立的认证链路，且在沙箱环境下需要特殊处理优先级覆盖问题：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>认证对象</th><th>方式</th><th>工具链</th><th>关键设计</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Groot 部署平台</td><td>Client Credentials</td><td>mtsso-client-credentials</td><td>分 API Token（list-projects）和 User Token（publish --mis）两种</td></tr>
+          <tr><td>大象开放平台</td><td>KMS 动态读取</td><td>mtcli-kms</td><td>凭证不落盘，每次运行时从 KMS 实时获取，通过 --client-id 显式传入防止被沙箱环境变量覆盖</td></tr>
+          <tr><td>FSD 发版平台</td><td>SSO Token</td><td>fsd-sso</td><td>Token 过期自动执行 fsd-sso login 重新登录，无需人工介入</td></tr>
+          <tr><td>UID 查询</td><td>大象开放平台 OAuth</td><td>query-uid.py</td><td>需显式覆盖 DX_CLIENT_ID 环境变量，否则沙箱会注入错误凭证</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📨 消息发送的「文件中转」模式</div>
+    <p>这是一个从历史事故中提炼出的核心设计模式。大象 IM 的 @ 协议文本格式为 <code>[@姓名|mtdaxiang://profile?uid=xxx]</code>，包含 <code>|</code>、<code>://</code>、<code>[</code>、<code>]</code> 等 Bash 特殊字符。如果直接 inline 到 shell 命令行的 <code>--text</code> 参数中，Bash 会错误解析导致消息被截断。</p>
+    <p style="margin-top:0.5rem;">解决方案是「三步文件中转法」：先用 write 工具将消息写入临时文件 → 再写入 at 列表文件 → 最后通过一个 Python 中间脚本读取文件内容，以 subprocess.call 传给 send.py，消息内容完全不经过 Bash 解析。</p>
+    <div class="code-block">
+<span class="comment"># 1. 消息内容写入文件（不经过 bash）</span>
+write → /tmp/msg_step1.txt
+
+<span class="comment"># 2. @ 列表写入文件</span>
+write → /tmp/at_list.txt  <span class="comment"># 每行 uid:姓名</span>
+
+<span class="comment"># 3. Python 中间脚本读文件 → 调用 send.py</span>
+<span class="keyword">import</span> subprocess
+<span class="keyword">with</span> <span class="func">open</span>(msg_file) <span class="keyword">as</span> f:
+    text = f.read().strip()
+cmd = [<span class="string">'python3'</span>, send_py, <span class="string">'send'</span>,
+       <span class="string">'--group'</span>, group,
+       <span class="string">'--client-id'</span>, dx_cid,
+       <span class="string">'--text'</span>, text, <span class="string">'--custom-at'</span>]
+subprocess.<span class="func">call</span>(cmd)  <span class="comment"># 不用 capture_output</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔍 前端 RD 双重过滤机制</div>
+    <p>edopenapi 接口返回的 <code>rd</code> 数组包含前端、后端、测试、PM 所有角色。如果不过滤就直接 @ 到群里，后端同事会被频繁打扰——这是历史上最常犯的错误。</p>
+    <p style="margin-top:0.5rem;">系统实施了两道过滤防线：第一道由 adfe-b-launch-plan-info Skill 在数据源层完成（edopenapi rd ∩ fe-rd-list.txt）；第二道由本 Skill 在消费层做 jobName 前缀白名单二次校验。即使上游 Skill 出现 bug 返回了非前端应用，也会被拦截。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💾 状态管理与幂等设计</div>
+    <p>系统通过 <code>state/daily-state.json</code> 实现通知幂等。例如"全部合入"通知，在首次发送后记录当天日期到 <code>allMergedNotifiedDate</code> 字段，后续轮次检测到日期匹配则跳过，避免同一天重复通知值班人。文件持久化在容器外部，不受重启影响。文件读取失败时默认视为"未通知"，保证了容错性。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🚀 Stage 部署的 dry-run + 轮询模式</div>
+    <p>部署 Stage 环境时采用「预检 → 正式部署 → 轮询」三段式策略。先对所有 A 类项目执行 <code>groot publish --dry-run</code> 预检，预检失败的项目直接标记跳过。正式部署时逐个触发并间隔 3 秒防并发冲突，从 stdout 提取 <code>logInfo.id</code> 用于后续状态查询。部署完成后以 30 秒间隔轮询所有项目的部署状态，最长 30 分钟超时，全部到达终态后一次性汇总通知值班人。</p>
+  </div>
+</section>
+
+<!-- ===== 5. 安全与防错机制 ===== -->
+<section id="safety">
+  <h2><span class="icon">🛡️</span> 安全与防错机制</h2>
+
+  <div class="highlight-grid">
+    <div class="highlight-item">
+      <div class="hi-num">5</div>
+      <div class="hi-label">绝对红线</div>
+    </div>
+    <div class="highlight-item">
+      <div class="hi-num">2 道</div>
+      <div class="hi-label">RD 过滤防线</div>
+    </div>
+    <div class="highlight-item">
+      <div class="hi-num">4 层</div>
+      <div class="hi-label">认证安全</div>
+    </div>
+    <div class="highlight-item">
+      <div class="hi-num">自愈</div>
+      <div class="hi-label">Token 过期自动修复</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🚨 五条绝对红线</div>
+    <p>系统对 AI Agent 的行为做了强约束，这在 AI Agent 工程化中是非常关键的设计：</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>红线</th><th>原因</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>消息格式逐字照抄模板</td><td>自创文案曾导致发版群收到不规范的通知</td></tr>
+          <tr><td>2</td><td>RD 数据只来自接口查询</td><td>AI 曾编造 RD 信息导致错误 @</td></tr>
+          <tr><td>3</td><td>@ 显示名必须用中文姓名</td><td>用 misId 显示不友好且对方难以识别</td></tr>
+          <tr><td>4</td><td>前端 RD 过滤不可跳过</td><td>后端 RD 被 @ 造成严重干扰（最常犯的错）</td></tr>
+          <tr><td>5</td><td>消息内容不可 inline 到 shell</td><td>@ 协议特殊字符被 Bash 截断（历史事故）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔄 自愈机制</div>
+    <p>系统具备多种自动恢复能力：fsd-sso Token 过期时自动执行 <code>fsd-sso login</code> 重新认证；Groot Token 失败时自动重新获取 Client Credentials；mtcli-kms 未安装时自动从 npm 安装；命令版本不满足要求时自动升级。这些都属于「可预判的环境问题」，无需人工介入。只有在自动修复尝试失败后，才通过私聊通知值班人。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧪 Preflight Checklist 机制</div>
+    <p>每次执行「发群消息」前，AI 必须逐条读取 <code>references/preflight-check.md</code> 中的自检项，全部确认通过后才能调用 send.py。这份 checklist 是从历史事故中提炼出来的，包含了消息格式、RD 数据源、@ 协议完整性等所有容易出错的点。这是一种「将事后复盘制度化」的工程实践。</p>
+  </div>
+</section>
+
+<!-- ===== 6. 面试话术 ===== -->
+<section id="interview">
+  <h2><span class="icon">🎤</span> 面试话术参考</h2>
+
+  <div class="interview-card">
+    <div class="q">Q：请介绍一下这个项目的背景和你解决了什么问题？</div>
+    <div class="a">
+      我们外卖广告前端团队有 20+ 个前端应用，每周发版两次。传统发版流程中，值班人需要手动检查每个应用的 PR 合入状态、逐个催促未合入的同事、手动触发 Stage 部署、检查备机验证、汇总上线计划——整个流程每次耗时 2-3 小时，且全靠人工操作容易遗漏。我设计并实现了一个 <strong>AI Agent Skill</strong> 驱动的全流程自动化发版系统，通过 9 个定时任务覆盖周一到周四的完整发版周期，将值班人从「执行者」解放为「审批者」，发版工作量接近零干预。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：你在这个项目中遇到的最大技术挑战是什么？</div>
+    <div class="a">
+      最大的挑战是 <strong>AI Agent 的行为可靠性</strong>。AI 在发群消息时天然有「自作聪明」的倾向——改文案措辞、跳过它认为不必要的步骤、编造数据。我们早期就出过 AI 把后端 RD 也 @ 进来的事故。我设计了一套「<strong>五条绝对红线 + preflight checklist + 双重 RD 过滤</strong>」的防错体系：消息模板逐字锁定、前端 RD 列表做两道交集过滤、消息发送前强制执行自检清单。这套机制本质上是在解决「如何让 AI Agent 在生产环境中可控可靠地工作」这个业界普遍面临的难题。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：系统的认证设计是怎么考虑的？</div>
+    <div class="a">
+      系统涉及四套认证体系，最复杂的点在于<strong>沙箱环境的凭证优先级覆盖问题</strong>。AI Agent 运行在沙箱环境中，沙箱会预设 <code>DX_CLIENT_ID</code> 环境变量指向沙箱 Bot。但我们需要用 Groot 机器人的凭证发群消息。如果用 <code>--config</code> 方式传入凭证，会被环境变量覆盖导致"机器人不在该群"错误。我的解决方案是<strong>从 KMS 动态读取凭证，通过 <code>--client-id</code> 命令行参数显式传入</strong>（最高优先级），同时在每次执行前做凭证预检——用 Groot 凭证调一次 query-uid.py 确认可用。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：你是怎么设计这个系统的架构的？</div>
+    <div class="a">
+      我采用了「<strong>主 Skill 编排 + 多关联 Skill 微服务</strong>」的架构。主 Skill 是编排控制器，负责流程调度、状态管理和异常处理；6 个关联 Skill 各自封装单一职责（上线计划查询、大象消息发送、部署平台操作等）。这种设计的好处是：一、关注点分离，每个 Skill 可以独立迭代；二、能力复用，比如 daxiang-sender 也被其他团队使用；三、故障隔离，某个 Skill 出问题不影响其他。调度层用了 9 个 Cron 定时任务，每个任务使用 <code>--session isolated</code> 确保隔离执行，互不干扰。
+    </div>
+  </div>
+
+  <div class="interview-card">
+    <div class="q">Q：这个系统上线后效果如何？</div>
+    <div class="a">
+      上线后的效果主要体现在三个维度。<strong>效率提升</strong>：值班人发版工作量从每次 2-3 小时降至接近零干预，只需在 Step 4 私聊收到的上线计划详情中做人工确认。<strong>质量提升</strong>：通过双重 RD 过滤和 preflight checklist，杜绝了之前频繁出现的"@ 错人"问题。<strong>覆盖度</strong>：系统经历了 V56 次迭代打磨，覆盖了各种边界情况（某个应用无前端 RD、凭证过期、网络超时、上线计划为空等），已经成为团队每周发版的核心基础设施。
+    </div>
+  </div>
+</section>
+
+<!-- ===== 7. 简历要点 ===== -->
+<section id="resume">
+  <h2><span class="icon">📝</span> 简历要点（可直接引用）</h2>
+
+  <div class="resume-block">
+    <h3>项目经历描述</h3>
+    <div class="point">主导设计并实现了外卖广告 B 端前端团队的全流程自动化发版系统，基于 AI Agent Skill 编排 + Cron 定时调度架构，覆盖 PR 合入检查、Stage 自动部署、备机验证催促、Prod 发版确认四大阶段。</div>
+    <div class="point">设计了「主 Skill 编排 + 6 关联 Skill 微服务」的架构，实现了关注点分离、能力复用和故障隔离，单个 Skill 可独立迭代，系统累计迭代 56 个版本。</div>
+    <div class="point">针对 AI Agent 在生产环境中的行为可靠性问题，设计了「五条绝对红线 + preflight checklist + 双重 RD 过滤」防错体系，从制度和工程两个层面约束 AI 行为，杜绝了 @错人、消息截断等历史事故。</div>
+    <div class="point">解决了沙箱环境下多认证体系的凭证优先级覆盖问题，设计了 KMS 动态凭证读取 + 命令行参数显式注入 + 运行前凭证预检的三层认证安全方案。</div>
+    <div class="point">实现了消息发送的「文件中转」模式，通过 Python 中间脚本避免 Bash 对 IM @ 协议特殊字符的错误解析，该方案从历史事故中提炼，已被团队作为标准实践推广。</div>
+    <div class="point">系统上线后，将值班人发版工作量从每次 2-3 小时降至接近零干预，覆盖 20+ 前端应用、9 个定时任务、每周两次发版周期。</div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <div class="card-title">🏷️ 推荐简历关键词</div>
+    <div style="margin-top: 0.5rem;">
+      <span class="tag tag-blue">AI Agent</span>
+      <span class="tag tag-blue">DevOps</span>
+      <span class="tag tag-blue">CI/CD</span>
+      <span class="tag tag-green">自动化发版</span>
+      <span class="tag tag-green">工程效率</span>
+      <span class="tag tag-yellow">Cron 调度</span>
+      <span class="tag tag-yellow">微服务编排</span>
+      <span class="tag tag-red">生产安全</span>
+      <span class="tag tag-red">防错设计</span>
+      <span class="tag tag-blue">KMS 密钥管理</span>
+      <span class="tag tag-green">SSO 认证</span>
+      <span class="tag tag-yellow">幂等设计</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Cron 调度全景表 ===== -->
+<section>
+  <h2><span class="icon">🕐</span> Cron 调度全景表</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>时间</th><th>星期</th><th>任务</th><th>触发频率</th><th>关键动作</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>11:00</td><td>一、三</td><td>Step 1</td><td>4 次/天</td><td>检查 PR 合入 → 群内 @ 催促</td></tr>
+        <tr><td>12:00</td><td>一、三</td><td>Step 1</td><td></td><td>同上</td></tr>
+        <tr><td>14:00</td><td>一、三</td><td>Step 1</td><td></td><td>同上</td></tr>
+        <tr><td>15:00</td><td>一、三</td><td>Step 1</td><td></td><td>同上</td></tr>
+        <tr><td>16:00</td><td>一、三</td><td>Step 2</td><td>1 次/天</td><td>自动部署 Stage → 轮询结果 → 私聊通知</td></tr>
+        <tr><td>11:00</td><td>二、四</td><td>Step 3</td><td>3 次/天</td><td>检查备机验证 → 群内 @ 催促</td></tr>
+        <tr><td>12:00</td><td>二、四</td><td>Step 3</td><td></td><td>同上</td></tr>
+        <tr><td>14:00</td><td>二、四</td><td>Step 3</td><td></td><td>同上</td></tr>
+        <tr><td>15:30</td><td>二、四</td><td>Step 4</td><td>1 次/天</td><td>查上线计划 → Markdown 私聊值班人</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  基于 adfe-b-publish-automation Skill V56 分析整理 · 2026
+</div>
+
+</div><!-- .container -->
+
+<script>
+  // 导航高亮
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.top-nav .nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>
